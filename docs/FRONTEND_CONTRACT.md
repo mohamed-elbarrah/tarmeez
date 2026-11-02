@@ -146,7 +146,7 @@ const uiSlice = createSlice({
 })
 
 export const { toggleSidebar, setTheme } = uiSlice.actions
-export default uiSlice.reducer
+export default uiSlice.reducer // Redux store entrypoints may use a default reducer export.
 ```
 
 ### Typed Hooks — always use these, never the raw hooks:
@@ -162,7 +162,7 @@ export const useAppSelector: TypedUseSelectorHook<RootState> = useSelector
 const sidebarOpen = useAppSelector((state) => state.ui.sidebarOpen)
 
 // ❌ Wrong — never use useSelector directly
-const sidebarOpen = useSelector((state: any) => state.ui.sidebarOpen)
+const sidebarOpen = useSelector((state: RootState) => state.ui.sidebarOpen)
 ```
 
 ---
@@ -242,6 +242,8 @@ export const {
 ## 5. Page Structure — Mandatory Pattern
 
 ### Every page = clean Server Component + separate Client Components
+
+Named exports are required for reusable components. Next.js route entrypoints (`page.tsx`, `layout.tsx`, and similar framework files) may use the default export required by the framework.
 
 ```typescript
 // app/(dashboard)/connections/page.tsx

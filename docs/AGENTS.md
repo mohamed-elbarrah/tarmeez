@@ -21,10 +21,11 @@ This is a **Monorepo** (Turborepo) with two apps:
 ```
 docs/
 ├── AGENTS.md              ← You are here. Read first, always.
-├── README.md              ← Project overview, setup, decisions log
+├── ../README.md           ← Project overview, setup, decisions log
 ├── PRODUCT_VISION.md      ← Why the product exists, principles, what it is NOT
 ├── PRODUCT_SCOPE.md       ← Feature boundaries, phased direction, open questions
 ├── PRODUCT_ROADMAP.md     ← Delivery phases, timelines, risks
+├── EXECUTION_PLAN.md      ← Current implementation sequence and checkpoints
 ├── FRONTEND_CONTRACT.md   ← Mandatory frontend patterns and rules
 └── BACKEND_CONTRACT.md    ← Mandatory backend patterns and rules
 ```
@@ -37,7 +38,7 @@ docs/
 | Document | Read when |
 |----------|-----------|
 | `AGENTS.md` | Start of every session — before touching any file |
-| `README.md` | You need the full picture: stack, setup, architecture, key decisions |
+| Root `README.md` | You need the full picture: stack, setup, architecture, key decisions |
 
 ### Read when working on product decisions
 | Document | Read when |
@@ -45,6 +46,7 @@ docs/
 | `PRODUCT_VISION.md` | You are asked about what Tarmeez is, who it serves, or its principles. Also read when a request might conflict with the product's stated boundaries |
 | `PRODUCT_SCOPE.md` | You are asked about what is in or out of scope, which features belong to which phase, or what decisions are still open |
 | `PRODUCT_ROADMAP.md` | You are asked about delivery order, phase timelines, workstreams, or risks |
+| `EXECUTION_PLAN.md` | You are implementing the currently selected delivery sequence |
 
 ### Read when writing or reviewing code
 | Document | Read when |
@@ -75,7 +77,20 @@ PRODUCT_ROADMAP.md
       └── BACKEND_CONTRACT.md   ← governs apps/api implementation
 ```
 
-**README.md** sits across all of them — it is the entry point that summarises every layer and links to each document.
+The root `README.md` sits across all of them — it is the entry point that summarises every layer and links to each document.
+
+## Document Authority
+
+When documents disagree, use this order of authority:
+
+1. `PRODUCT_VISION.md` — product purpose and principles.
+2. `PRODUCT_SCOPE.md` — approved boundaries and open decisions.
+3. `PRODUCT_ROADMAP.md` — delivery sequence and validation gates.
+4. `EXECUTION_PLAN.md` — implementation sequence for the current plan.
+5. `FRONTEND_CONTRACT.md` / `BACKEND_CONTRACT.md` — technical implementation rules.
+6. Root `README.md` — setup summary and quick reference.
+
+If a decision is not approved in the product documents, do not treat an implementation plan or README summary as final. Flag the conflict and record the decision before expanding scope.
 
 ---
 
@@ -246,7 +261,9 @@ PostgreSQL (via Repository)
 
 ---
 
-## MVP Boundaries — What Exists Now
+## MVP Boundaries — Current Working Baseline
+
+The following is the current implementation baseline. It remains subject to the Phase 0 validation and product-owner decisions recorded in `PRODUCT_SCOPE.md` and `PRODUCT_ROADMAP.md`.
 
 ### In scope for MVP (Beta):
 - Merchant auth (register, login, refresh)
@@ -266,7 +283,7 @@ PostgreSQL (via Repository)
 - TikTok Ads or Google Ads integrations
 - Self-serve billing (manual in beta)
 
-> If a request asks you to build something in the "out of scope" list, flag it and confirm with the user before proceeding.
+> If a request asks you to build something outside the current baseline or inside an open-decision area, flag it and confirm the scope before proceeding.
 
 ---
 
@@ -350,6 +367,17 @@ NEXT_PUBLIC_API_URL
 8. **No unhandled states** — every data component handles loading, error, and empty
 9. **No unaudited sensitive actions** — write to `audit_logs`
 10. **No building out-of-scope features** without explicit confirmation
+
+## Contribution Rules
+
+- Use branches named `feature/`, `fix/`, `chore/`, or `docs/`.
+- Keep changes small and focused; explain product, API, database, and security impact in the PR.
+- Before opening a PR, run the repository's lint, typecheck, build, and relevant test commands.
+- Database changes require a reviewed Prisma migration and a rollback or recovery note.
+- Never commit secrets, tokens, customer data, or credentials; never expose them in logs.
+- Every feature needs acceptance criteria, loading/error/empty states where relevant, and tests for important failure paths.
+- Update the relevant contract or decision log when a rule or architectural decision changes.
+- A feature is done only after implementation, tests, review, documentation, and integration checks are complete.
 
 ---
 

@@ -144,7 +144,7 @@ import { Observable, map } from 'rxjs'
 
 @Injectable()
 export class ResponseInterceptor implements NestInterceptor {
-  intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
+  intercept<T>(context: ExecutionContext, next: CallHandler<T>): Observable<ApiSuccessResponse<T>> {
     return next.handle().pipe(
       map((data) => ({
         success: true,
@@ -211,9 +211,10 @@ export class GlobalExceptionFilter implements ExceptionFilter {
 
     if (exception instanceof HttpException) {
       statusCode = exception.getStatus()
-      const body = exception.getResponse() as any
-      key = body?.key ?? 'errors.server.unknown'
-      details = body?.details
+      const body = exception.getResponse()
+      const errorBody = typeof body === 'object' && body !== null ? body as { key?: string; details?: Record<string, string[]> } : undefined
+      key = errorBody?.key ?? 'errors.server.unknown'
+      details = errorBody?.details
     } else {
       this.logger.error('Unhandled exception', exception)
     }
@@ -611,7 +612,7 @@ All config accessed through `ConfigService` — no `process.env` scattered in co
 // config/jwt.config.ts
 import { registerAs } from '@nestjs/config'
 
-export default registerAs('jwt', () => ({
+export const jwtConfig = registerAs('jwt', () => ({
   accessSecret: process.env.JWT_ACCESS_SECRET,
   refreshSecret: process.env.JWT_REFRESH_SECRET,
   accessExpiresIn: process.env.JWT_ACCESS_EXPIRES_IN ?? '15m',

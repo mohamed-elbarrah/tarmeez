@@ -3,6 +3,8 @@
 **Last updated:** November 2026
 **Goal:** A stable, testable MVP ready for real merchant beta
 
+> This is an implementation sequence, not an approved delivery schedule. The week labels are rough planning placeholders and must not override the validation gates or open decisions in `PRODUCT_SCOPE.md` and `PRODUCT_ROADMAP.md`.
+
 ---
 
 ## Overview
@@ -19,7 +21,7 @@ Phase 7 — Frontend: Merchant Dashboard (Weeks 12–15)
 Phase 8 — QA & Beta Prep            (Week 16)
 ```
 
-**Total: ~16 weeks to a testable MVP**
+The total duration is not committed. Re-estimate after Phase 0 validation and after the first complete integration slice.
 
 ---
 

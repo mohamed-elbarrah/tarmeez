@@ -166,13 +166,16 @@ NEXT_PUBLIC_API_URL=http://localhost:4000
 
 ## Project Documents
 
-All documents live in `/docs`. Read them in this order:
+Read the documents in this order. If they conflict, `AGENTS.md` defines the authority order and the product documents take precedence over implementation summaries.
+
+All product and technical documents live in `/docs` (the project README is at the repository root). Read them in this order:
 
 | Document | What it covers |
 |----------|---------------|
 | [`PRODUCT_VISION.md`](./docs/PRODUCT_VISION.md) | Why Tarmeez exists, who it serves, product principles |
 | [`PRODUCT_SCOPE.md`](./docs/PRODUCT_SCOPE.md) | Capability boundaries, phased direction, open decisions |
 | [`PRODUCT_ROADMAP.md`](./docs/PRODUCT_ROADMAP.md) | Delivery phases, workstreams, risks, next steps |
+| [`EXECUTION_PLAN.md`](./docs/EXECUTION_PLAN.md) | Current implementation sequence and checkpoints |
 | [`FRONTEND_CONTRACT.md`](./docs/FRONTEND_CONTRACT.md) | **Mandatory** frontend structure, patterns, and rules |
 | [`BACKEND_CONTRACT.md`](./docs/BACKEND_CONTRACT.md) | **Mandatory** backend structure, patterns, and rules |
 
@@ -236,9 +239,9 @@ All documents live in `/docs`. Read them in this order:
 
 ---
 
-## MVP Scope (Beta)
+## Current Working MVP Baseline
 
-The first public release targets a controlled group of real merchants. It includes:
+The implementation plan currently targets a controlled beta. This baseline is not a final product commitment; Phase 0 validation and product-owner decisions remain authoritative.
 
 ### Merchant Dashboard
 - Account registration and login (JWT + Refresh Tokens)
@@ -257,7 +260,7 @@ The first public release targets a controlled group of real merchants. It includ
 - Error logs
 - Beta invitations
 
-### Explicitly out of MVP
+### Explicitly out of the current working baseline
 - Storefront tracking script
 - Attribution and customer journey
 - Alerts and AI recommendations
@@ -267,6 +270,8 @@ The first public release targets a controlled group of real merchants. It includ
 ---
 
 ## Delivery Phases (Summary)
+
+These phases are a delivery sequence, not a fixed schedule. The first release boundary remains subject to the validation decisions in `PRODUCT_SCOPE.md` and `PRODUCT_ROADMAP.md`.
 
 | Phase | Outcome |
 |-------|---------|
@@ -324,4 +329,4 @@ Full detail → [`PRODUCT_ROADMAP.md`](./docs/PRODUCT_ROADMAP.md)
 
 ---
 
-*This README reflects decisions made as of November 2026. Update it when any major decision changes.*
+*This README reflects the current working baseline as of November 2026. Update it when an approved product or architectural decision changes.*
