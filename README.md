@@ -1,0 +1,327 @@
+# Tarmeez — Project README
+**Version:** 1.0
+**Last updated:** November 2026
+
+> Central reference for everyone working on Tarmeez. Read this before touching any code.
+
+---
+
+## What is Tarmeez?
+
+Tarmeez is a centralized commerce and marketing intelligence platform for merchants who operate existing online stores on **Salla** and **Zid**.
+
+A merchant connects their store and advertising accounts to Tarmeez. Tarmeez unifies three data domains — commerce data, advertising data, and first-party storefront behaviour — into a single coherent view of business performance, customer journeys, and marketing contribution.
+
+---
+
+## Repository Structure
+
+This is a **Monorepo** managed with **Turborepo**.
+
+```
+tarmeez/
+├── apps/
+│   ├── web/              # Next.js — Merchant Dashboard
+│   └── api/              # NestJS — Backend API
+├── packages/
+│   ├── types/            # Shared TypeScript types (web + api)
+│   └── utils/            # Shared utilities
+├── docker-compose.dev.yml
+├── turbo.json
+└── package.json
+```
+
+---
+
+## Tech Stack
+
+### Frontend (`apps/web`)
+| | |
+|--|--|
+| Framework | Next.js 16 — App Router |
+| UI Components | shadcn/ui + Tailwind CSS |
+| State Management | Redux Toolkit (UI state) + RTK Query (server state) |
+| Language | TypeScript (strict) |
+
+### Backend (`apps/api`)
+| | |
+|--|--|
+| Framework | NestJS 12 |
+| ORM | Prisma 7 (`^7` — v8 is RC, not yet stable) |
+| Database | PostgreSQL 16 |
+| Queue / Jobs | BullMQ |
+| Cache / Sessions | Redis 7 |
+| Auth | JWT + Refresh Tokens |
+| Language | TypeScript (strict) |
+
+### Runtime
+| | |
+|--|--|
+| Node.js | 26 LTS (Active LTS since October 2026, supported until April 2029) |
+
+### Infrastructure
+| | |
+|--|--|
+| Containerization | Docker + Docker Compose |
+| Database image | `postgres:16-alpine` |
+| Redis image | `redis:7-alpine` |
+| Deployment | VPS — Docker Compose |
+| CI/CD | GitHub Actions |
+
+---
+
+## Getting Started
+
+### Prerequisites
+- Node.js 26 LTS
+- Docker + Docker Compose
+- pnpm
+
+### 1. Clone the repository
+```bash
+git clone https://github.com/your-org/tarmeez.git
+cd tarmeez
+```
+
+### 2. Install dependencies
+```bash
+pnpm install
+```
+
+### 3. Start infrastructure services
+```bash
+# Starts PostgreSQL + Redis only — code runs locally
+docker compose -f docker-compose.dev.yml up -d
+```
+
+### 4. Set up environment variables
+```bash
+cp apps/api/.env.example apps/api/.env
+cp apps/web/.env.example apps/web/.env.local
+# Fill in the required values — see Environment Variables section below
+```
+
+### 5. Run database migrations
+```bash
+cd apps/api
+pnpm prisma migrate dev
+```
+
+### 6. Start development servers
+```bash
+# From root — starts all apps in parallel
+pnpm dev
+```
+
+| Service | URL |
+|---------|-----|
+| Merchant Dashboard | http://localhost:3000 |
+| API | http://localhost:4000 |
+| API Health | http://localhost:4000/health |
+
+---
+
+## Environment Variables
+
+### Backend (`apps/api/.env`)
+```env
+# App
+NODE_ENV=development
+PORT=4000
+FRONTEND_URL=http://localhost:3000
+
+# Database
+DATABASE_URL=postgresql://tarmeez:secret@localhost:5432/tarmeez
+
+# JWT
+JWT_ACCESS_SECRET=
+JWT_REFRESH_SECRET=
+JWT_ACCESS_EXPIRES_IN=15m
+JWT_REFRESH_EXPIRES_IN=7d
+
+# Redis
+REDIS_HOST=localhost
+REDIS_PORT=6379
+
+# Salla
+SALLA_CLIENT_ID=
+SALLA_CLIENT_SECRET=
+SALLA_WEBHOOK_SECRET=
+
+# Zid
+ZID_CLIENT_ID=
+ZID_CLIENT_SECRET=
+
+# Meta Ads
+META_APP_ID=
+META_APP_SECRET=
+```
+
+### Frontend (`apps/web/.env.local`)
+```env
+NEXT_PUBLIC_API_URL=http://localhost:4000
+```
+
+---
+
+## Project Documents
+
+All documents live in `/docs`. Read them in this order:
+
+| Document | What it covers |
+|----------|---------------|
+| [`PRODUCT_VISION.md`](./docs/PRODUCT_VISION.md) | Why Tarmeez exists, who it serves, product principles |
+| [`PRODUCT_SCOPE.md`](./docs/PRODUCT_SCOPE.md) | Capability boundaries, phased direction, open decisions |
+| [`PRODUCT_ROADMAP.md`](./docs/PRODUCT_ROADMAP.md) | Delivery phases, workstreams, risks, next steps |
+| [`FRONTEND_CONTRACT.md`](./docs/FRONTEND_CONTRACT.md) | **Mandatory** frontend structure, patterns, and rules |
+| [`BACKEND_CONTRACT.md`](./docs/BACKEND_CONTRACT.md) | **Mandatory** backend structure, patterns, and rules |
+
+---
+
+## Architecture Overview
+
+```
+┌─────────────────────────────────────┐
+│         Merchant Dashboard          │
+│     Next.js 16 (App Router)         │
+│   RTK Query ←→ Redux Toolkit        │
+└────────────────┬────────────────────┘
+                 │ HTTPS / REST
+┌────────────────▼────────────────────┐
+│            NestJS API               │
+│   Auth · Connections · Analytics    │
+│   Feature-based · Repository layer  │
+└──────┬──────────────┬───────────────┘
+       │              │
+┌──────▼──────┐  ┌────▼──────┐
+│ PostgreSQL  │  │   Redis   │
+│  16-alpine  │  │ 7-alpine  │
+│  (Prisma)   │  │ (BullMQ)  │
+└─────────────┘  └───────────┘
+                      │
+              ┌───────▼────────┐
+              │  BullMQ Jobs   │
+              │  Salla Sync    │
+              │  Zid Sync      │
+              │  Ads Sync      │
+              └────────────────┘
+```
+
+---
+
+## Development Rules
+
+> The contracts below are **mandatory**. PRs that violate them will not be merged.
+
+### Frontend — Non-negotiable rules
+- `'use client'` in leaf components only — never in pages or layouts
+- All API calls through **RTK Query** — no fetch/axios directly
+- All UI-only state through **Redux slices** — no server state in Redux
+- **Named exports** always — no `export default` for components
+- Every data component handles **loading + error + empty** states
+- No `any` in TypeScript
+- Full rules → [`FRONTEND_CONTRACT.md`](./docs/FRONTEND_CONTRACT.md)
+
+### Backend — Non-negotiable rules
+- All Prisma calls inside **Repository** classes only
+- All config accessed through **ConfigService** — no `process.env` in code
+- All errors thrown as **`AppException`** with a translation key — no hardcoded text
+- All incoming data validated through **DTOs** with `class-validator`
+- All list endpoints return the shared **`PaginatedResult`** shape
+- Long-running tasks dispatched to **BullMQ** — not inline async calls
+- Sensitive actions written to **`audit_logs`**
+- No `console.log` — use NestJS **Logger** with class context
+- No `any` in TypeScript
+- Full rules → [`BACKEND_CONTRACT.md`](./docs/BACKEND_CONTRACT.md)
+
+---
+
+## MVP Scope (Beta)
+
+The first public release targets a controlled group of real merchants. It includes:
+
+### Merchant Dashboard
+- Account registration and login (JWT + Refresh Tokens)
+- Connect a Salla store (OAuth)
+- Connect a Zid store (OAuth)
+- Connect a Meta Ads account
+- Connection health and sync status
+- Sales analytics: revenue, orders, AOV, top products
+- Campaign analytics: spend, clicks, ROAS
+- Team management (Owner + Viewer roles)
+
+### Admin Panel (Internal)
+- Merchant list and profiles
+- Subscription management
+- Connection health overview
+- Error logs
+- Beta invitations
+
+### Explicitly out of MVP
+- Storefront tracking script
+- Attribution and customer journey
+- Alerts and AI recommendations
+- Store write operations
+- TikTok / Google Ads integrations
+
+---
+
+## Delivery Phases (Summary)
+
+| Phase | Outcome |
+|-------|---------|
+| **0 — Validation** | Verify Salla/Zid APIs, webhooks, tracking feasibility |
+| **1 — Foundation** | Auth, multi-tenancy, infrastructure, CI/CD |
+| **2 — Salla Integration** | OAuth, data sync, webhook handling |
+| **3 — Core Analytics** | Sales dashboard, orders, products |
+| **4 — Zid Integration** | Same as Salla on the proven pattern |
+| **5 — Ads Integration** | Meta Ads — spend, campaigns, basic ROAS |
+| **6 — Beta** | 5–10 real merchants, monitored onboarding |
+| **7 — v1 Public** | Self-serve onboarding, billing, stable release |
+
+Full detail → [`PRODUCT_ROADMAP.md`](./docs/PRODUCT_ROADMAP.md)
+
+---
+
+## Key Decisions Log
+
+| Decision | Choice | Reason |
+|----------|--------|--------|
+| Monorepo | Turborepo | Shared types between web and api, single pipeline |
+| Node.js runtime | v26 LTS | Active LTS since Oct 2026, supported until Apr 2029 |
+| Frontend framework | Next.js 16 — App Router | Latest stable, Turbopack default, server components |
+| UI | shadcn/ui + Tailwind | Accessible, unstyled base, full control |
+| State | RTK Query + Redux Toolkit | Server state vs UI state separation |
+| Backend framework | NestJS 12 | Latest stable, ESM, native observability |
+| ORM | Prisma 7 (pinned `^7`) | Stable for production — v8 is still RC |
+| Database | PostgreSQL 16 Alpine | Stable, lightweight image |
+| Queue | BullMQ + Redis 7 Alpine | Reliable job processing for sync tasks |
+| Auth | JWT + Refresh Tokens | Stateless API, secure token rotation |
+| Dev services | Docker Compose | One command setup for all developers |
+| Production | VPS + Docker Compose | Simple, cost-effective for beta stage |
+| CI/CD | GitHub Actions | Free, sufficient for current team size |
+| API errors | Translation keys (not hardcoded text) | i18n-ready from day one |
+
+---
+
+## Team
+
+| Role | Responsibilities |
+|------|-----------------|
+| Frontend Developer | Next.js app, components, RTK Query, Redux |
+| Backend Developer | NestJS API, integrations, BullMQ jobs |
+| Database Specialist | Prisma schema, migrations, query optimization |
+
+---
+
+## Contributing
+
+1. Read the relevant contract document before writing any code
+2. Branch naming: `feature/`, `fix/`, `chore/`
+3. PR must pass the contract checklist in the relevant document
+4. No PR merges without at least one review
+5. No `any` in TypeScript — ever
+
+---
+
+*This README reflects decisions made as of November 2026. Update it when any major decision changes.*
