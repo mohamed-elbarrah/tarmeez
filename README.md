@@ -88,8 +88,11 @@ cd tarmeez
 pnpm install
 ```
 
-### 3. Start infrastructure services
+### 3. Configure and start infrastructure services
 ```bash
+# Compose reads this root-level file for local service credentials and ports
+cp .env.example .env
+
 # Starts PostgreSQL + Redis only — app code runs locally
 docker compose -f docker-compose.dev.yml up -d
 
@@ -100,7 +103,7 @@ docker compose -f docker-compose.dev.yml ps
 docker compose -f docker-compose.dev.yml down
 ```
 
-The development database is available at `localhost:5432` (`tarmeez` / `secret`); Redis is available at `localhost:6379`. These credentials and the unauthenticated Redis instance are for local development only. Both services bind to localhost and persist data in named Docker volumes. If either default port is already in use, override the host ports, for example `POSTGRES_HOST_PORT=15432 REDIS_HOST_PORT=16379 docker compose -f docker-compose.dev.yml up -d`; update `DATABASE_URL` and `REDIS_PORT` in `apps/api/.env` to match. To **delete** the persisted data as well as stop the services, run `docker compose -f docker-compose.dev.yml down --volumes`.
+The root `.env` supplies Compose with the PostgreSQL credentials and host ports; it is ignored by Git. These credentials and the unauthenticated Redis instance are for local development only. Both services bind to localhost and persist data in named Docker volumes. If you change the host ports in `.env`, update `DATABASE_URL` and `REDIS_PORT` in `apps/api/.env` to match. To **delete** the persisted data as well as stop the services, run `docker compose -f docker-compose.dev.yml down --volumes`.
 
 ### 4. Set up environment variables
 ```bash
