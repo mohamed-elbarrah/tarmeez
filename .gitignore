@@ -22,6 +22,7 @@ tmp/
 .cache/
 
 # Prisma/local database artifacts
+apps/api/src/generated/
 *.db
 *.db-journal
 

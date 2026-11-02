@@ -90,9 +90,17 @@ pnpm install
 
 ### 3. Start infrastructure services
 ```bash
-# Starts PostgreSQL + Redis only — code runs locally
+# Starts PostgreSQL + Redis only — app code runs locally
 docker compose -f docker-compose.dev.yml up -d
+
+# Check service health
+docker compose -f docker-compose.dev.yml ps
+
+# Stop services (keeps database/cache volumes)
+docker compose -f docker-compose.dev.yml down
 ```
+
+The development database is available at `localhost:5432` (`tarmeez` / `secret`); Redis is available at `localhost:6379`. These credentials and the unauthenticated Redis instance are for local development only. Both services bind to localhost and persist data in named Docker volumes. If either default port is already in use, override the host ports, for example `POSTGRES_HOST_PORT=15432 REDIS_HOST_PORT=16379 docker compose -f docker-compose.dev.yml up -d`; update `DATABASE_URL` and `REDIS_PORT` in `apps/api/.env` to match. To **delete** the persisted data as well as stop the services, run `docker compose -f docker-compose.dev.yml down --volumes`.
 
 ### 4. Set up environment variables
 ```bash
@@ -133,9 +141,9 @@ FRONTEND_URL=http://localhost:3000
 # Database
 DATABASE_URL=postgresql://tarmeez:secret@localhost:5432/tarmeez
 
-# JWT
-JWT_ACCESS_SECRET=
-JWT_REFRESH_SECRET=
+# JWT (replace with independent random secrets, at least 32 characters each)
+JWT_ACCESS_SECRET=replace-with-a-random-access-secret
+JWT_REFRESH_SECRET=replace-with-a-random-refresh-secret
 JWT_ACCESS_EXPIRES_IN=15m
 JWT_REFRESH_EXPIRES_IN=7d
 
