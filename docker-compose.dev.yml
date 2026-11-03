@@ -17,6 +17,13 @@ services:
       start_period: 10s
     restart: unless-stopped
 
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "127.0.0.1:1025:1025"
+      - "127.0.0.1:8025:8025"
+    restart: unless-stopped
+
   redis:
     image: redis:7-alpine
     ports:

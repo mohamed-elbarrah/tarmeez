@@ -1,0 +1,107 @@
+import { randomInt, createHmac } from 'node:crypto';
+import { HttpStatus, Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { hash } from 'bcryptjs';
+import { AppException } from '../../common/exceptions/app.exception.js';
+import { AuthMailerService } from './auth-mailer.service.js';
+import { AuthRepository } from './auth.repository.js';
+import type { RegisterDto } from './dto/register.dto.js';
+
+const PASSWORD_HASH_ROUNDS = 12;
+const SIGNUP_ACCEPTED_RESPONSE = {
+  emailVerificationRequired: true,
+  messageKey: 'success.auth.verification_code_sent',
+};
+
+@Injectable()
+export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
+  constructor(
+    private readonly authRepository: AuthRepository,
+    private readonly authMailer: AuthMailerService,
+    private readonly config: ConfigService,
+  ) {}
+
+  async register(input: RegisterDto) {
+    const email = input.email.trim().toLowerCase();
+    const code = this.generateOtp();
+    const codeHash = this.hashOtp(email, code);
+    const now = new Date();
+    const expiresAt = new Date(
+      now.getTime() +
+        this.config.getOrThrow<number>('auth.otpExpiresInMinutes') * 60_000,
+    );
+    let shouldSend = false;
+    let merchantId: string | undefined;
+
+    const existing = await this.authRepository.findMerchantByEmail(email);
+    if (existing) {
+      merchantId = existing.id;
+      shouldSend = await this.authRepository.issueSignupOtp({
+        merchantId,
+        codeHash,
+        expiresAt,
+        now,
+        cooldownMs:
+          this.config.getOrThrow<number>('auth.otpResendCooldownSeconds') *
+          1000,
+      });
+    } else {
+      const passwordHash = await hash(input.password, PASSWORD_HASH_ROUNDS);
+      try {
+        const merchant = await this.authRepository.createMerchantWithSignupOtp({
+          email,
+          name: input.name.trim(),
+          passwordHash,
+          codeHash,
+          expiresAt,
+          now,
+        });
+        merchantId = merchant.id;
+        shouldSend = true;
+      } catch (error) {
+        if (this.isUniqueConstraintError(error)) {
+          // Keep the public response the same if a concurrent registration won the race.
+          return SIGNUP_ACCEPTED_RESPONSE;
+        }
+        throw error;
+      }
+    }
+
+    if (shouldSend && merchantId) {
+      try {
+        await this.authMailer.sendSignupVerificationCode(email, code);
+      } catch {
+        await this.authRepository.invalidateSignupOtp(merchantId, new Date());
+        this.logger.error('Signup verification email delivery failed');
+        throw new AppException(
+          'errors.auth.email_delivery_failed',
+          HttpStatus.SERVICE_UNAVAILABLE,
+        );
+      }
+    }
+
+    return SIGNUP_ACCEPTED_RESPONSE;
+  }
+
+  private generateOtp(): string {
+    return randomInt(0, 1_000_000).toString().padStart(6, '0');
+  }
+
+  private hashOtp(email: string, code: string): string {
+    const pepper = this.config.getOrThrow<string>('auth.otpPepper');
+    return createHmac('sha256', pepper)
+      .update(`SIGNUP_VERIFICATION:${email}:${code}`)
+      .digest('hex');
+  }
+
+  private isUniqueConstraintError(error: unknown): boolean {
+    return (
+      typeof error === 'object' &&
+      error !== null &&
+      'code' in error &&
+      error.code === 'P2002'
+    );
+  }
+}

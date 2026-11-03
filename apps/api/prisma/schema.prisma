@@ -6,3 +6,68 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+enum UserRole {
+  MERCHANT
+  ADMIN
+}
+
+enum MerchantStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+enum EmailOtpPurpose {
+  SIGNUP_VERIFICATION
+  PASSWORD_RESET
+}
+
+model Merchant {
+  id              String         @id @default(uuid())
+  email           String         @unique
+  name            String
+  passwordHash    String         @map("password_hash")
+  role            UserRole       @default(MERCHANT)
+  status          MerchantStatus @default(ACTIVE)
+  emailVerifiedAt DateTime?      @map("email_verified_at")
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
+  emailOtps       EmailOtp[]
+  refreshTokens   RefreshToken[]
+
+  @@map("merchants")
+}
+
+model EmailOtp {
+  id         String          @id @default(uuid())
+  merchantId String          @map("merchant_id")
+  purpose    EmailOtpPurpose
+  codeHash   String          @map("code_hash")
+  expiresAt  DateTime        @map("expires_at")
+  attempts   Int             @default(0)
+  lastSentAt DateTime        @default(now()) @map("last_sent_at")
+  consumedAt DateTime?       @map("consumed_at")
+  createdAt  DateTime        @default(now()) @map("created_at")
+  merchant   Merchant        @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+
+  // One row per purpose is updated when a code is reissued, so old codes cannot remain active.
+  @@unique([merchantId, purpose])
+  @@index([expiresAt])
+  @@map("email_otps")
+}
+
+model RefreshToken {
+  id         String    @id @default(uuid())
+  merchantId String    @map("merchant_id")
+  tokenHash  String    @unique @map("token_hash")
+  familyId   String    @map("family_id")
+  expiresAt  DateTime  @map("expires_at")
+  revokedAt  DateTime? @map("revoked_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  merchant   Merchant  @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+
+  @@index([merchantId, revokedAt])
+  @@index([familyId])
+  @@index([expiresAt])
+  @@map("refresh_tokens")
+}
