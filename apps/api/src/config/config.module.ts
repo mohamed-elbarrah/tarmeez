@@ -25,6 +25,8 @@ const environmentSchema = Joi.object({
   JWT_REFRESH_EXPIRES_IN: Joi.string()
     .pattern(/^[1-9]\d*(ms|s|m|h|d)$/)
     .default('7d'),
+  JWT_ISSUER: Joi.string().min(1).default('tarmeez-api'),
+  JWT_AUDIENCE: Joi.string().min(1).default('tarmeez-client'),
   AUTH_OTP_PEPPER: Joi.string().min(32).required(),
   AUTH_OTP_EXPIRES_IN_MINUTES: Joi.number()
     .integer()
