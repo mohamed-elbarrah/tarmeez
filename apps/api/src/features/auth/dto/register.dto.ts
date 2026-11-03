@@ -15,6 +15,9 @@ export class RegisterDto {
   @IsEmail()
   email!: string;
 
+  @Transform(({ value }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
   @IsString()
   @IsNotEmpty()
   @MaxLength(120)

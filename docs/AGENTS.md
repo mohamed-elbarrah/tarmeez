@@ -26,6 +26,7 @@ docs/
 ├── PRODUCT_SCOPE.md       ← Feature boundaries, phased direction, open questions
 ├── PRODUCT_ROADMAP.md     ← Delivery phases, timelines, risks
 ├── EXECUTION_PLAN.md      ← Current implementation sequence and checkpoints
+├── API_AUTH.md            ← Current authentication API integration contract
 ├── FRONTEND_CONTRACT.md   ← Mandatory frontend patterns and rules
 └── BACKEND_CONTRACT.md    ← Mandatory backend patterns and rules
 ```
@@ -47,6 +48,7 @@ docs/
 | `PRODUCT_SCOPE.md` | You are asked about what is in or out of scope, which features belong to which phase, or what decisions are still open |
 | `PRODUCT_ROADMAP.md` | You are asked about delivery order, phase timelines, workstreams, or risks |
 | `EXECUTION_PLAN.md` | You are implementing the currently selected delivery sequence |
+| `API_AUTH.md` | You are integrating or changing the implemented authentication API |
 
 ### Read when writing or reviewing code
 | Document | Read when |
