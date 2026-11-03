@@ -27,6 +27,7 @@ docs/
 ├── PRODUCT_ROADMAP.md     ← Delivery phases, timelines, risks
 ├── EXECUTION_PLAN.md      ← Current implementation sequence and checkpoints
 ├── API_AUTH.md            ← Current authentication API integration contract
+├── API_MERCHANTS.md       ← Current workspace, team, and invitation API contract
 ├── FRONTEND_CONTRACT.md   ← Mandatory frontend patterns and rules
 └── BACKEND_CONTRACT.md    ← Mandatory backend patterns and rules
 ```
@@ -49,6 +50,7 @@ docs/
 | `PRODUCT_ROADMAP.md` | You are asked about delivery order, phase timelines, workstreams, or risks |
 | `EXECUTION_PLAN.md` | You are implementing the currently selected delivery sequence |
 | `API_AUTH.md` | You are integrating or changing the implemented authentication API |
+| `API_MERCHANTS.md` | You are integrating or changing workspace, team, or invitation APIs |
 
 ### Read when writing or reviewing code
 | Document | Read when |

@@ -188,6 +188,7 @@ All product and technical documents live in `/docs` (the project README is at th
 | [`PRODUCT_ROADMAP.md`](./docs/PRODUCT_ROADMAP.md) | Delivery phases, workstreams, risks, next steps |
 | [`EXECUTION_PLAN.md`](./docs/EXECUTION_PLAN.md) | Current implementation sequence and checkpoints |
 | [`API_AUTH.md`](./docs/API_AUTH.md) | Authentication API flows, endpoints, cookies, and errors |
+| [`API_MERCHANTS.md`](./docs/API_MERCHANTS.md) | Merchant workspace, team roles, and invitation flows |
 | [`FRONTEND_CONTRACT.md`](./docs/FRONTEND_CONTRACT.md) | **Mandatory** frontend structure, patterns, and rules |
 | [`BACKEND_CONTRACT.md`](./docs/BACKEND_CONTRACT.md) | **Mandatory** backend structure, patterns, and rules |
 

@@ -181,16 +181,24 @@ POST /auth/reset-password    # set new password with token
 
 ### Step 1.2 — Merchants Module
 **What:**
-Endpoints for managing merchant profile and workspace.
+Endpoints for managing merchant profile, workspace, and viewer invitations.
+
+**Approved MVP tenancy rule:** one workspace membership per merchant user. Public signup creates a workspace and `OWNER` membership; invitation signup joins the invited workspace as `VIEWER`. An already-assigned user cannot join a second workspace until multi-workspace support is deliberately added for agencies.
 
 **Endpoints:**
 ```
-GET   /merchants/me              # get own profile
-PATCH /merchants/me              # update own profile
-GET   /merchants/me/team         # list team members
-POST  /merchants/me/team/invite  # invite a team member
-DELETE /merchants/me/team/:id    # remove a team member
+GET    /merchants/me
+PATCH  /merchants/me
+GET    /merchants/me/team
+GET    /merchants/me/team/invitations
+POST   /merchants/me/team/invitations
+POST   /merchants/me/team/invitations/:invitationId/resend
+DELETE /merchants/me/team/invitations/:invitationId
+DELETE /merchants/me/team/:membershipId
+POST   /auth/accept-invitation  # existing, verified, unassigned user
 ```
+
+New invitees register with the invitation token and verify their email; registration creates only their viewer membership, not a personal workspace. Invitations are email-based, viewer-only, and expire after seven days. Owners alone can rename the workspace or manage team invitations and members. See [`API_MERCHANTS.md`](API_MERCHANTS.md) for the integration contract.
 
 **Why now:**
 Every other resource (connections, analytics) belongs to a merchant. This establishes that ownership layer.

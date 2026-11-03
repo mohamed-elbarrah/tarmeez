@@ -7,20 +7,20 @@ export class AuthMailerService {
   private readonly transporter: Transporter;
   private readonly from: string;
 
-  constructor(config: ConfigService) {
-    const user = config.get<string>('mail.user', '');
-    const password = config.get<string>('mail.password', '');
+  constructor(private readonly config: ConfigService) {
+    const user = this.config.get<string>('mail.user', '');
+    const password = this.config.get<string>('mail.password', '');
 
     this.transporter = nodemailer.createTransport({
-      host: config.getOrThrow<string>('mail.host'),
-      port: config.getOrThrow<number>('mail.port'),
-      secure: config.getOrThrow<boolean>('mail.secure'),
+      host: this.config.getOrThrow<string>('mail.host'),
+      port: this.config.getOrThrow<number>('mail.port'),
+      secure: this.config.getOrThrow<boolean>('mail.secure'),
       connectionTimeout: 5_000,
       greetingTimeout: 5_000,
       socketTimeout: 10_000,
       ...(user && password ? { auth: { user, pass: password } } : {}),
     });
-    this.from = config.getOrThrow<string>('mail.from');
+    this.from = this.config.getOrThrow<string>('mail.from');
   }
 
   async sendSignupVerificationCode(email: string, code: string): Promise<void> {
@@ -39,6 +39,25 @@ export class AuthMailerService {
       'Reset your Tarmeez password',
       'password reset',
     );
+  }
+
+  async sendTeamInvitation(
+    email: string,
+    merchantName: string,
+    inviterName: string,
+    token: string,
+  ): Promise<void> {
+    const acceptUrl = new URL(
+      '/accept-invitation',
+      this.config.getOrThrow<string>('app.frontendUrl'),
+    );
+    acceptUrl.searchParams.set('token', token);
+    await this.transporter.sendMail({
+      from: this.from,
+      to: email,
+      subject: `Invitation to join ${merchantName} on Tarmeez`,
+      text: `${inviterName} invited you to join ${merchantName} on Tarmeez as a viewer. Accept the invitation: ${acceptUrl.toString()}. The invitation expires in 7 days.`,
+    });
   }
 
   private async sendCodeEmail(

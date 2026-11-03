@@ -12,9 +12,19 @@ enum UserRole {
   ADMIN
 }
 
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+}
+
 enum MerchantStatus {
   ACTIVE
   SUSPENDED
+}
+
+enum MembershipRole {
+  OWNER
+  VIEWER
 }
 
 enum EmailOtpPurpose {
@@ -22,51 +32,105 @@ enum EmailOtpPurpose {
   PASSWORD_RESET
 }
 
-model Merchant {
-  id              String         @id @default(uuid())
-  email           String         @unique
+model User {
+  id              String              @id @default(uuid())
+  email           String              @unique
   name            String
-  passwordHash    String         @map("password_hash")
-  role            UserRole       @default(MERCHANT)
-  status          MerchantStatus @default(ACTIVE)
-  emailVerifiedAt DateTime?      @map("email_verified_at")
-  createdAt       DateTime       @default(now()) @map("created_at")
-  updatedAt       DateTime       @updatedAt @map("updated_at")
+  passwordHash    String              @map("password_hash")
+  role            UserRole            @default(MERCHANT)
+  status          UserStatus          @default(ACTIVE)
+  emailVerifiedAt DateTime?           @map("email_verified_at")
+  createdAt       DateTime            @default(now()) @map("created_at")
+  updatedAt       DateTime            @updatedAt @map("updated_at")
+  membership      MerchantMembership?
+  ownedMerchant   Merchant?           @relation("MerchantOwner")
   emailOtps       EmailOtp[]
   refreshTokens   RefreshToken[]
+  sentInvitations Invitation[]        @relation("InvitationInviter")
+
+  @@map("users")
+}
+
+model Merchant {
+  id          String               @id @default(uuid())
+  ownerUserId String               @unique @map("owner_user_id")
+  name        String
+  status      MerchantStatus       @default(ACTIVE)
+  createdAt   DateTime             @default(now()) @map("created_at")
+  updatedAt   DateTime             @updatedAt @map("updated_at")
+  owner       User                 @relation("MerchantOwner", fields: [ownerUserId], references: [id], onDelete: Restrict)
+  memberships MerchantMembership[]
+  invitations Invitation[]
 
   @@map("merchants")
 }
 
-model EmailOtp {
-  id         String          @id @default(uuid())
-  merchantId String          @map("merchant_id")
-  purpose    EmailOtpPurpose
-  codeHash   String          @map("code_hash")
-  expiresAt  DateTime        @map("expires_at")
-  attempts   Int             @default(0)
-  lastSentAt DateTime        @default(now()) @map("last_sent_at")
-  consumedAt DateTime?       @map("consumed_at")
-  createdAt  DateTime        @default(now()) @map("created_at")
-  merchant   Merchant        @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+model MerchantMembership {
+  id         String         @id @default(uuid())
+  userId     String         @unique @map("user_id")
+  merchantId String         @map("merchant_id")
+  role       MembershipRole @default(OWNER)
+  createdAt  DateTime       @default(now()) @map("created_at")
+  updatedAt  DateTime       @updatedAt @map("updated_at")
+  user       User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  merchant   Merchant       @relation(fields: [merchantId], references: [id], onDelete: Cascade)
 
-  // One row per purpose is updated when a code is reissued, so old codes cannot remain active.
-  @@unique([merchantId, purpose])
+  @@unique([merchantId, userId])
+  @@index([merchantId, role])
+  @@map("merchant_memberships")
+}
+
+model Invitation {
+  id              String         @id @default(uuid())
+  merchantId      String         @map("merchant_id")
+  invitedByUserId String         @map("invited_by_user_id")
+  email           String         @unique
+  role            MembershipRole @default(VIEWER)
+  tokenHash       String         @unique @map("token_hash")
+  expiresAt       DateTime       @map("expires_at")
+  acceptedAt      DateTime?      @map("accepted_at")
+  revokedAt       DateTime?      @map("revoked_at")
+  createdAt       DateTime       @default(now()) @map("created_at")
+  merchant        Merchant       @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  invitedBy       User           @relation("InvitationInviter", fields: [invitedByUserId], references: [id], onDelete: Restrict)
+  emailOtps       EmailOtp[]
+
+  @@index([merchantId, expiresAt])
+  @@index([invitedByUserId])
+  @@map("invitations")
+}
+
+model EmailOtp {
+  id           String          @id @default(uuid())
+  userId       String          @map("user_id")
+  invitationId String?         @map("invitation_id")
+  purpose      EmailOtpPurpose
+  codeHash     String          @map("code_hash")
+  expiresAt    DateTime        @map("expires_at")
+  attempts     Int             @default(0)
+  lastSentAt   DateTime        @default(now()) @map("last_sent_at")
+  consumedAt   DateTime?       @map("consumed_at")
+  createdAt    DateTime        @default(now()) @map("created_at")
+  user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  invitation   Invitation?     @relation(fields: [invitationId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, purpose])
   @@index([expiresAt])
+  @@index([invitationId])
   @@map("email_otps")
 }
 
 model RefreshToken {
-  id         String    @id @default(uuid())
-  merchantId String    @map("merchant_id")
-  tokenHash  String    @unique @map("token_hash")
-  familyId   String    @map("family_id")
-  expiresAt  DateTime  @map("expires_at")
-  revokedAt  DateTime? @map("revoked_at")
-  createdAt  DateTime  @default(now()) @map("created_at")
-  merchant   Merchant  @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  id        String    @id @default(uuid())
+  userId    String    @map("user_id")
+  tokenHash String    @unique @map("token_hash")
+  familyId  String    @map("family_id")
+  expiresAt DateTime  @map("expires_at")
+  revokedAt DateTime? @map("revoked_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([merchantId, revokedAt])
+  @@index([userId, revokedAt])
   @@index([familyId])
   @@index([expiresAt])
   @@map("refresh_tokens")

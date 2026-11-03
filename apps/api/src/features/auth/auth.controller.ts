@@ -17,6 +17,7 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
 import type { AuthUser } from '../../common/types/auth-user.types.js';
 import type { Request, Response } from 'express';
 import { AuthService } from './auth.service.js';
+import { AcceptInvitationDto } from './dto/accept-invitation.dto.js';
 import { ForgotPasswordDto } from './dto/forgot-password.dto.js';
 import { LoginDto } from './dto/login.dto.js';
 import { RegisterDto } from './dto/register.dto.js';
@@ -43,6 +44,20 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   register(@Body() input: RegisterDto) {
     return this.authService.register(input);
+  }
+
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @Post('accept-invitation')
+  @HttpCode(HttpStatus.OK)
+  async acceptInvitation(
+    @Req() request: Request,
+    @Body() input: AcceptInvitationDto,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    this.assertTrustedOrigin(request);
+    const result = await this.authService.acceptInvitation(input);
+    this.setRefreshCookie(response, result);
+    return this.sessionResponse(result);
   }
 
   @Throttle({ default: { limit: 5, ttl: 60_000 } })

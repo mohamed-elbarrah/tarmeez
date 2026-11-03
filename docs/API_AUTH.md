@@ -8,13 +8,13 @@ This guide documents the current backend behavior. All successful responses use 
 
 ## Integration flow
 
-1. Create a merchant account with `POST /auth/register`.
-2. Read the six-digit signup code from email and submit it to `POST /auth/verify-email`.
-3. Verification completes signup and returns an access token. The API sets the refresh-token cookie.
-4. Send the access token as a bearer token to protected endpoints.
-5. When the access token expires, call `POST /auth/refresh`; the API rotates the refresh cookie and returns a new access token.
+1. A normal signup uses `POST /auth/register`, verifies the emailed six-digit code at `POST /auth/verify-email`, and creates a user, workspace, and owner membership.
+2. An invitee includes the emailed `invitationToken` in `POST /auth/register`; after email verification, the API creates a viewer membership in the invited workspace without creating another workspace.
+3. An existing, verified user with no current workspace membership accepts an invitation through `POST /auth/accept-invitation` using their current password and the invitation token.
+4. Verification or invitation acceptance returns an access token and sets the refresh-token cookie.
+5. Send the access token as a bearer token to protected endpoints. When the access token expires, call `POST /auth/refresh`; the API rotates the refresh cookie and returns a new access token.
 
-Users can also start a session with `POST /auth/login`. Password reset uses `POST /auth/forgot-password` followed by `POST /auth/reset-password`.
+Users can also start a session with `POST /auth/login`. Password reset uses `POST /auth/forgot-password` followed by `POST /auth/reset-password`. See [`API_MERCHANTS.md`](API_MERCHANTS.md) for workspace roles and invitation boundaries.
 
 ## Session and browser requirements
 
@@ -31,7 +31,8 @@ Users can also start a session with `POST /auth/login`. Password reset uses `POS
 | Method | Path | Purpose | Success status |
 |---|---|---|---:|
 | `POST` | `/auth/register` | Register a merchant and send a signup OTP | `200` |
-| `POST` | `/auth/verify-email` | Verify signup OTP and sign in | `200` |
+| `POST` | `/auth/verify-email` | Verify signup OTP, complete signup/invitation, and sign in | `200` |
+| `POST` | `/auth/accept-invitation` | Existing verified, unassigned user accepts invitation and signs in | `200` |
 | `POST` | `/auth/login` | Sign in a verified, active account | `200` |
 | `POST` | `/auth/refresh` | Rotate refresh token and issue a new access token | `200` |
 | `POST` | `/auth/logout` | Revoke refresh token and clear cookie | `200` |
@@ -52,7 +53,16 @@ All request bodies are JSON. Email addresses are trimmed and normalized to lower
 }
 ```
 
-`name` is required and limited to 120 characters. Passwords must contain at least 8 characters and be no more than 72 UTF-8 bytes.
+For an invitation-based signup, include `"invitationToken": "<token-from-email-link>"`. `name` is required and limited to 120 characters. Passwords must contain at least 8 characters and be no more than 72 UTF-8 bytes.
+
+```json
+// POST /auth/accept-invitation (existing, verified user with no membership)
+{
+  "email": "teammate@example.com",
+  "password": "Their-current-password",
+  "invitationToken": "<token-from-email-link>"
+}
+```
 
 ```json
 // POST /auth/verify-email
@@ -174,7 +184,7 @@ Common auth errors:
 | `503` | `errors.auth.email_delivery_failed` | Signup verification email could not be delivered |
 | `400` | `errors.request.validation_failed` | Request failed DTO validation |
 
-Auth routes are rate limited per client IP using Redis-backed storage: register, verify-email, login, and reset-password allow 5 requests/minute each; refresh allows 30/minute; forgot-password allows 3/minute. The global API limit is 100 requests/minute. A `429` may indicate either an OTP attempt limit or a request-rate limit.
+Auth routes are rate limited per client IP using Redis-backed storage: register, verify-email, invitation acceptance, login, and reset-password allow 5 requests/minute each; refresh allows 30/minute; forgot-password allows 3/minute. The global API limit is 100 requests/minute. A `429` may indicate either an OTP attempt limit or a request-rate limit. Workspace invitation creation/resend have their own limits; see [`API_MERCHANTS.md`](API_MERCHANTS.md).
 
 ## Local smoke test
 
@@ -203,6 +213,7 @@ curl -i -b cookies.txt -X POST "$API/auth/logout"
 
 ## Account and role boundaries
 
-- Public registration creates `MERCHANT` accounts only.
-- The first `ADMIN` is provisioned using the operator-run CLI. There is currently no API endpoint for creating or promoting additional admins.
-- Suspended or unverified accounts cannot sign in.
+- Public registration creates `MERCHANT` users only. Without an invitation, signup creates a workspace and `OWNER` membership; with a valid invitation token, signup creates a `VIEWER` membership in that workspace.
+- Each merchant user can belong to at most one workspace in the MVP. A user already assigned to a workspace cannot accept another workspace invitation; multi-workspace access for agencies is deferred.
+- An existing verified user with no membership can accept an invitation using their current password. The first `ADMIN` is provisioned using the operator-run CLI; admins are global and have no workspace membership.
+- There is currently no API endpoint for creating or promoting admins. Suspended or unverified accounts cannot sign in.

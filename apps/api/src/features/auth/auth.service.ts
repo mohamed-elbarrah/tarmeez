@@ -12,10 +12,13 @@ import { compare, hash } from 'bcryptjs';
 import {
   EmailOtpPurpose,
   MerchantStatus,
+  UserRole,
+  UserStatus,
 } from '../../generated/prisma/client.js';
 import { AppException } from '../../common/exceptions/app.exception.js';
 import { AuthMailerService } from './auth-mailer.service.js';
 import { AuthRepository } from './auth.repository.js';
+import type { AcceptInvitationDto } from './dto/accept-invitation.dto.js';
 import type { ForgotPasswordDto } from './dto/forgot-password.dto.js';
 import type { LoginDto } from './dto/login.dto.js';
 import type { RegisterDto } from './dto/register.dto.js';
@@ -56,13 +59,29 @@ export class AuthService {
     const now = new Date();
     const expiresAt = this.otpExpiry(now);
     let shouldSend = false;
-    let merchantId: string | undefined;
+    let userId: string | undefined;
 
-    const existing = await this.authRepository.findMerchantByEmail(email);
+    const existing = await this.authRepository.findUserByEmail(email);
     if (existing) {
-      merchantId = existing.id;
+      if (
+        input.invitationToken &&
+        (existing.membership || existing.emailVerifiedAt)
+      ) {
+        throw new AppException(
+          'errors.merchant.existing_account_invitation_required',
+          HttpStatus.CONFLICT,
+        );
+      }
+      userId = existing.id;
       shouldSend = await this.authRepository.issueOtp({
-        merchantId,
+        userId,
+        ...(input.invitationToken
+          ? {
+              invitationTokenHash: createHash('sha256')
+                .update(input.invitationToken)
+                .digest('hex'),
+            }
+          : {}),
         purpose: EmailOtpPurpose.SIGNUP_VERIFICATION,
         codeHash,
         expiresAt,
@@ -72,15 +91,34 @@ export class AuthService {
     } else {
       const passwordHash = await hash(input.password, PASSWORD_HASH_ROUNDS);
       try {
-        const merchant = await this.authRepository.createMerchantWithSignupOtp({
+        const result = await this.authRepository.createUserWithSignupOtp({
           email,
           name: input.name.trim(),
           passwordHash,
+          ...(input.invitationToken
+            ? {
+                invitationTokenHash: createHash('sha256')
+                  .update(input.invitationToken)
+                  .digest('hex'),
+              }
+            : {}),
           codeHash,
           expiresAt,
           now,
         });
-        merchantId = merchant.id;
+        if (result.status === 'INVITATION_INVALID') {
+          throw new AppException(
+            'errors.merchant.invitation_invalid_or_expired',
+            HttpStatus.BAD_REQUEST,
+          );
+        }
+        if (result.status === 'INVITATION_REQUIRED') {
+          throw new AppException(
+            'errors.merchant.invitation_token_required',
+            HttpStatus.BAD_REQUEST,
+          );
+        }
+        userId = result.user.id;
         shouldSend = true;
       } catch (error) {
         if (this.isUniqueConstraintError(error)) {
@@ -90,12 +128,12 @@ export class AuthService {
       }
     }
 
-    if (shouldSend && merchantId) {
+    if (shouldSend && userId) {
       try {
         await this.authMailer.sendSignupVerificationCode(email, code);
       } catch {
         await this.authRepository.invalidateOtp(
-          merchantId,
+          userId,
           EmailOtpPurpose.SIGNUP_VERIFICATION,
           new Date(),
         );
@@ -108,6 +146,53 @@ export class AuthService {
     }
 
     return SIGNUP_ACCEPTED_RESPONSE;
+  }
+
+  async acceptInvitation(input: AcceptInvitationDto) {
+    const email = input.email.trim().toLowerCase();
+    const user = await this.authRepository.findUserByEmail(email);
+    const passwordMatches = await compare(
+      input.password,
+      user?.passwordHash ?? DUMMY_PASSWORD_HASH,
+    );
+    if (
+      !user ||
+      !passwordMatches ||
+      user.role !== UserRole.MERCHANT ||
+      user.status !== UserStatus.ACTIVE ||
+      !user.emailVerifiedAt
+    ) {
+      throw new AppException(
+        'errors.auth.invalid_credentials',
+        HttpStatus.UNAUTHORIZED,
+      );
+    }
+
+    const now = new Date();
+    const refresh = this.newRefreshToken(now);
+    const result = await this.authRepository.acceptInvitationForUser({
+      userId: user.id,
+      tokenHash: createHash('sha256')
+        .update(input.invitationToken)
+        .digest('hex'),
+      now,
+      familyId: refresh.familyId,
+      tokenHashForRefresh: refresh.tokenHash,
+      refreshExpiresAt: refresh.expiresAt,
+    });
+    if (result.status === 'ALREADY_ASSIGNED') {
+      throw new AppException(
+        'errors.merchant.existing_account_invitation_required',
+        HttpStatus.CONFLICT,
+      );
+    }
+    if (result.status !== 'ACCEPTED') {
+      throw new AppException(
+        'errors.merchant.invitation_invalid_or_expired',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+    return this.createSessionResponse(result.user, refresh);
   }
 
   async verifyEmail(input: VerifyEmailDto) {
@@ -146,17 +231,12 @@ export class AuthService {
 
   async login(input: LoginDto) {
     const email = input.email.trim().toLowerCase();
-    const merchant = await this.authRepository.findMerchantByEmail(email);
+    const user = await this.authRepository.findUserByEmail(email);
     const passwordMatches = await compare(
       input.password,
-      merchant?.passwordHash ?? DUMMY_PASSWORD_HASH,
+      user?.passwordHash ?? DUMMY_PASSWORD_HASH,
     );
-    if (
-      !merchant ||
-      !passwordMatches ||
-      !merchant.emailVerifiedAt ||
-      merchant.status !== MerchantStatus.ACTIVE
-    ) {
+    if (!user || !passwordMatches || !this.canAuthenticate(user)) {
       throw new AppException(
         'errors.auth.invalid_credentials',
         HttpStatus.UNAUTHORIZED,
@@ -166,17 +246,17 @@ export class AuthService {
     const now = new Date();
     const refresh = this.newRefreshToken(now);
     await this.authRepository.createRefreshToken({
-      merchantId: merchant.id,
+      userId: user.id,
       tokenHash: refresh.tokenHash,
       familyId: refresh.familyId,
       expiresAt: refresh.expiresAt,
     });
     return this.createSessionResponse(
       {
-        id: merchant.id,
-        email: merchant.email,
-        name: merchant.name,
-        role: merchant.role,
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
       },
       refresh,
     );
@@ -224,19 +304,15 @@ export class AuthService {
 
   async forgotPassword(input: ForgotPasswordDto) {
     const email = input.email.trim().toLowerCase();
-    const merchant = await this.authRepository.findMerchantByEmail(email);
-    if (
-      !merchant ||
-      !merchant.emailVerifiedAt ||
-      merchant.status !== MerchantStatus.ACTIVE
-    ) {
+    const user = await this.authRepository.findUserByEmail(email);
+    if (!user || !this.canResetPassword(user) || !user.emailVerifiedAt) {
       return PASSWORD_RESET_ACCEPTED_RESPONSE;
     }
 
     const code = this.generateOtp();
     const now = new Date();
     const issued = await this.authRepository.issueOtp({
-      merchantId: merchant.id,
+      userId: user.id,
       purpose: EmailOtpPurpose.PASSWORD_RESET,
       codeHash: this.hashOtp(email, code, EmailOtpPurpose.PASSWORD_RESET),
       expiresAt: this.otpExpiry(now),
@@ -249,7 +325,7 @@ export class AuthService {
       await this.authMailer.sendPasswordResetCode(email, code);
     } catch {
       await this.authRepository.invalidateOtp(
-        merchant.id,
+        user.id,
         EmailOtpPurpose.PASSWORD_RESET,
         new Date(),
       );
@@ -349,6 +425,35 @@ export class AuthService {
 
   private otpMaxAttempts(): number {
     return this.config.getOrThrow<number>('auth.otpMaxAttempts');
+  }
+
+  private canResetPassword(user: {
+    status: UserStatus;
+    emailVerifiedAt: Date | null;
+    role: UserRole;
+    membership: { merchant: { status: MerchantStatus } } | null;
+  }): boolean {
+    return (
+      user.status === UserStatus.ACTIVE &&
+      Boolean(user.emailVerifiedAt) &&
+      (user.role === UserRole.ADMIN ||
+        !user.membership ||
+        user.membership.merchant.status === MerchantStatus.ACTIVE)
+    );
+  }
+
+  private canAuthenticate(user: {
+    status: UserStatus;
+    emailVerifiedAt: Date | null;
+    role: UserRole;
+    membership: { merchant: { status: MerchantStatus } } | null;
+  }): boolean {
+    return (
+      user.status === UserStatus.ACTIVE &&
+      Boolean(user.emailVerifiedAt) &&
+      (user.role === UserRole.ADMIN ||
+        user.membership?.merchant.status === MerchantStatus.ACTIVE)
+    );
   }
 
   private parseDurationMs(duration: string): number {
