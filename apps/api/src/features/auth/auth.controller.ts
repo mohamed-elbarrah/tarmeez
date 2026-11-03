@@ -12,11 +12,8 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { Throttle } from '@nestjs/throttler';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
-import { Roles } from '../../common/decorators/roles.decorator.js';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
-import { RolesGuard } from '../../common/guards/roles.guard.js';
 import type { AuthUser } from '../../common/types/auth-user.types.js';
-import { UserRole } from '../../generated/prisma/client.js';
 import type { Request, Response } from 'express';
 import { AuthService } from './auth.service.js';
 import { ForgotPasswordDto } from './dto/forgot-password.dto.js';
@@ -38,14 +35,6 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   getCurrentUser(@CurrentUser() user: AuthUser) {
     return user;
-  }
-
-  // Temporary endpoint for manually verifying role-based authorization; remove after validation.
-  @Get('_admin-guard-check')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
-  getAdminGuardCheck() {
-    return { authorized: true };
   }
 
   @Throttle({ default: { limit: 5, ttl: 60_000 } })

@@ -10,6 +10,7 @@
     "build": "pnpm prisma:generate && nest build",
     "dev": "pnpm prisma:generate && cross-env PORT=4000 nest start --watch",
     "deploy": "nest deploy",
+    "admin:bootstrap": "pnpm build && node dist/cli/bootstrap-admin.js",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "pnpm prisma:generate && nest start",
     "start:dev": "pnpm prisma:generate && cross-env PORT=4000 nest start --watch",

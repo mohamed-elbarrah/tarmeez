@@ -258,6 +258,41 @@ export class AuthRepository {
     );
   }
 
+  async createFirstAdmin(input: {
+    email: string;
+    name: string;
+    passwordHash: string;
+    now: Date;
+  }): Promise<'CREATED' | 'ADMIN_EXISTS' | 'EMAIL_EXISTS'> {
+    return this.prisma.$transaction(
+      async (transaction) => {
+        const adminCount = await transaction.merchant.count({
+          where: { role: 'ADMIN' },
+        });
+        if (adminCount > 0) return 'ADMIN_EXISTS';
+
+        const existing = await transaction.merchant.findUnique({
+          where: { email: input.email },
+          select: { id: true },
+        });
+        if (existing) return 'EMAIL_EXISTS';
+
+        await transaction.merchant.create({
+          data: {
+            email: input.email,
+            name: input.name,
+            passwordHash: input.passwordHash,
+            role: 'ADMIN',
+            status: MerchantStatus.ACTIVE,
+            emailVerifiedAt: input.now,
+          },
+        });
+        return 'CREATED';
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
+  }
+
   async createRefreshToken(input: {
     merchantId: string;
     tokenHash: string;
