@@ -19,8 +19,12 @@ const environmentSchema = Joi.object({
     .required(),
   JWT_ACCESS_SECRET: Joi.string().min(32).required(),
   JWT_REFRESH_SECRET: Joi.string().min(32).required(),
-  JWT_ACCESS_EXPIRES_IN: Joi.string().default('15m'),
-  JWT_REFRESH_EXPIRES_IN: Joi.string().default('7d'),
+  JWT_ACCESS_EXPIRES_IN: Joi.string()
+    .pattern(/^[1-9]\d*(ms|s|m|h|d)$/)
+    .default('15m'),
+  JWT_REFRESH_EXPIRES_IN: Joi.string()
+    .pattern(/^[1-9]\d*(ms|s|m|h|d)$/)
+    .default('7d'),
   AUTH_OTP_PEPPER: Joi.string().min(32).required(),
   AUTH_OTP_EXPIRES_IN_MINUTES: Joi.number()
     .integer()
