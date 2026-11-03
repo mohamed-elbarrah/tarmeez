@@ -207,31 +207,20 @@ Every other resource (connections, analytics) belongs to a merchant. This establ
 
 ### Step 1.3 — Shared packages/types
 **What:**
-Define all shared TypeScript interfaces in `packages/types`.
+Define and adopt shared TypeScript contracts for API areas that are already implemented.
 
 **Why:**
-Frontend and Backend must agree on the same type shapes. Defining them once in a shared package eliminates inconsistency.
+Frontend and backend should agree on the same response and domain shapes without coupling the shared package to NestJS or Prisma.
 
-**Types to define:**
+**Types in this step:**
 ```typescript
-// Merchant
-Merchant, MerchantStatus
-
-// Connections
-Connection, ConnectionPlatform, ConnectionStatus
-
-// Commerce
-Order, OrderStatus, Product, Customer
-
-// Ads
-CampaignStat
-
-// API
-ApiSuccessResponse<T>, ApiErrorResponse, PaginatedResult<T>
-
-// Auth
-AuthUser, TokenPair
+ApiSuccessResponse<T>, ApiErrorResponse, PaginationMeta
+AuthUser, AuthSessionUser, AuthSessionResponse
+UserRole, MerchantStatus, MembershipRole
+MerchantWorkspace, MerchantProfileResponse, MerchantTeamMember, MerchantInvitation
 ```
+
+Connection, commerce, and advertising types are deferred until those API contracts exist; do not add speculative shapes in this step.
 
 ---
 

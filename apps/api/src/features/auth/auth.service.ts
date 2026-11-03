@@ -9,6 +9,12 @@ import { HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { compare, hash } from 'bcryptjs';
+import type {
+  AuthMessageResponse,
+  AuthSessionResponse,
+  AuthSessionUser,
+  SignupAcceptedResponse,
+} from '@tarmeez/types';
 import {
   EmailOtpPurpose,
   MerchantStatus,
@@ -25,6 +31,14 @@ import type { RegisterDto } from './dto/register.dto.js';
 import type { ResetPasswordDto } from './dto/reset-password.dto.js';
 import type { VerifyEmailDto } from './dto/verify-email.dto.js';
 
+interface AuthSessionResult extends AuthSessionResponse {
+  refreshToken: string;
+  refreshTokenMaxAge: number;
+  refreshCookieName: string;
+  refreshCookieSecure: boolean;
+  refreshCookieSameSite: string;
+}
+
 const PASSWORD_HASH_ROUNDS = 12;
 const REFRESH_COOKIE_NAME = 'tarmeez_refresh';
 const DUMMY_PASSWORD_HASH =
@@ -32,10 +46,10 @@ const DUMMY_PASSWORD_HASH =
 const SIGNUP_ACCEPTED_RESPONSE = {
   emailVerificationRequired: true,
   messageKey: 'success.auth.verification_code_sent',
-};
+} as const;
 const PASSWORD_RESET_ACCEPTED_RESPONSE = {
   messageKey: 'success.auth.password_reset_code_sent',
-};
+} as const;
 
 @Injectable()
 export class AuthService {
@@ -48,7 +62,7 @@ export class AuthService {
     private readonly jwtService: JwtService,
   ) {}
 
-  async register(input: RegisterDto) {
+  async register(input: RegisterDto): Promise<SignupAcceptedResponse> {
     const email = input.email.trim().toLowerCase();
     const code = this.generateOtp();
     const codeHash = this.hashOtp(
@@ -302,7 +316,7 @@ export class AuthService {
     }
   }
 
-  async forgotPassword(input: ForgotPasswordDto) {
+  async forgotPassword(input: ForgotPasswordDto): Promise<AuthMessageResponse> {
     const email = input.email.trim().toLowerCase();
     const user = await this.authRepository.findUserByEmail(email);
     if (!user || !this.canResetPassword(user) || !user.emailVerifiedAt) {
@@ -359,9 +373,9 @@ export class AuthService {
   }
 
   private async createSessionResponse(
-    user: { id: string; email: string; name: string; role: string },
+    user: AuthSessionUser,
     refresh: ReturnType<AuthService['newRefreshToken']>,
-  ) {
+  ): Promise<AuthSessionResult> {
     const accessToken = await this.jwtService.signAsync({
       sub: user.id,
       role: user.role,

@@ -6,6 +6,7 @@ import {
   HttpStatus,
   Logger,
 } from '@nestjs/common';
+import type { ApiErrorResponse } from '@tarmeez/types';
 import type { Response } from 'express';
 import { AppException } from '../exceptions/app.exception.js';
 
@@ -37,13 +38,14 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       this.logger.error('Unhandled request exception', stack);
     }
 
-    response.status(statusCode).json({
+    const errorResponse: ApiErrorResponse = {
       success: false,
       error: {
         key,
         statusCode,
         ...(details ? { details } : {}),
       },
-    });
+    };
+    response.status(statusCode).json(errorResponse);
   }
 }

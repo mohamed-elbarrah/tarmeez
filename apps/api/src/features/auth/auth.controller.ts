@@ -10,6 +10,7 @@ import {
   Res,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import type { AuthSessionResponse } from '@tarmeez/types';
 import { Throttle } from '@nestjs/throttler';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { AppException } from '../../common/exceptions/app.exception.js';
@@ -143,7 +144,7 @@ export class AuthController {
 
   private sessionResponse(
     result: Awaited<ReturnType<AuthService['verifyEmail']>>,
-  ) {
+  ): AuthSessionResponse {
     return {
       accessToken: result.accessToken,
       user: result.user,

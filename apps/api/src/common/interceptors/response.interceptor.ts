@@ -4,19 +4,22 @@ import {
   Injectable,
   NestInterceptor,
 } from '@nestjs/common';
+import type { ApiSuccessResponse, PaginationMeta } from '@tarmeez/types';
 import { map, Observable } from 'rxjs';
 
 interface HandlerResult<T> {
   data?: T;
-  meta?: unknown;
+  meta?: PaginationMeta;
 }
 
 @Injectable()
-export class ResponseInterceptor<T> implements NestInterceptor<T, unknown> {
+export class ResponseInterceptor<T>
+  implements NestInterceptor<T, ApiSuccessResponse<unknown>>
+{
   intercept(
     _context: ExecutionContext,
     next: CallHandler<T>,
-  ): Observable<unknown> {
+  ): Observable<ApiSuccessResponse<unknown>> {
     return next.handle().pipe(
       map((result: T) => {
         const value = result as HandlerResult<T> | null;

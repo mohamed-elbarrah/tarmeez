@@ -1,5 +1,10 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { HttpStatus, Injectable, Logger } from '@nestjs/common';
+import type {
+  MerchantInvitation,
+  MerchantProfileResponse,
+  MerchantTeamMember,
+} from '@tarmeez/types';
 import {
   MembershipRole,
   MerchantStatus,
@@ -19,12 +24,15 @@ export class MerchantsService {
     private readonly authMailer: AuthMailerService,
   ) {}
 
-  async getMyMerchant(userId: string) {
+  async getMyMerchant(userId: string): Promise<MerchantProfileResponse> {
     const membership = await this.requireMembership(userId);
-    return membership;
+    return this.serializeProfile(membership);
   }
 
-  async updateMyMerchantName(userId: string, name: string) {
+  async updateMyMerchantName(
+    userId: string,
+    name: string,
+  ): Promise<MerchantProfileResponse> {
     const membership = await this.requireMembership(userId);
     if (membership.role !== MembershipRole.OWNER) {
       throw new AppException(
@@ -43,17 +51,27 @@ export class MerchantsService {
         HttpStatus.FORBIDDEN,
       );
     }
-    return updated;
+    return this.serializeProfile(updated);
   }
 
-  async getTeam(userId: string) {
+  async getTeam(userId: string): Promise<MerchantTeamMember[]> {
     await this.requireMembership(userId);
-    return this.merchantsRepository.findMyTeam(userId);
+    const team = await this.merchantsRepository.findMyTeam(userId);
+    if (!team) {
+      throw new AppException('errors.merchant.not_found', HttpStatus.NOT_FOUND);
+    }
+    return team.map((member) => this.serializeTeamMember(member));
   }
 
-  async getInvitations(userId: string) {
+  async getInvitations(userId: string): Promise<MerchantInvitation[]> {
     await this.requireOwner(userId);
-    return this.merchantsRepository.findMyInvitations(userId);
+    const invitations = await this.merchantsRepository.findMyInvitations(userId);
+    if (!invitations) {
+      throw new AppException('errors.merchant.not_found', HttpStatus.NOT_FOUND);
+    }
+    return invitations.map((invitation) =>
+      this.serializeInvitation(invitation),
+    );
   }
 
   async createInvitation(userId: string, email: string) {
@@ -94,7 +112,7 @@ export class MerchantsService {
       token,
       result.invitation.id,
     );
-    return { invitation: result.invitation };
+    return { invitation: this.serializeInvitation(result.invitation) };
   }
 
   async resendInvitation(userId: string, invitationId: string) {
@@ -134,7 +152,7 @@ export class MerchantsService {
       token,
       result.invitation.id,
     );
-    return { invitation: result.invitation };
+    return { invitation: this.serializeInvitation(result.invitation) };
   }
 
   async revokeInvitation(userId: string, invitationId: string) {
@@ -179,6 +197,50 @@ export class MerchantsService {
       );
     }
     return { messageKey: 'success.merchant.member_removed' };
+  }
+
+  private serializeProfile(
+    membership: NonNullable<
+      Awaited<ReturnType<MerchantsRepository['findMyMerchant']>>
+    >,
+  ): MerchantProfileResponse {
+    return {
+      role: membership.role,
+      createdAt: membership.createdAt.toISOString(),
+      user: {
+        ...membership.user,
+        emailVerifiedAt:
+          membership.user.emailVerifiedAt?.toISOString() ?? null,
+      },
+      merchant: {
+        ...membership.merchant,
+        createdAt: membership.merchant.createdAt.toISOString(),
+        updatedAt: membership.merchant.updatedAt.toISOString(),
+      },
+    };
+  }
+
+  private serializeTeamMember(member: {
+    id: string;
+    role: MembershipRole;
+    createdAt: Date;
+    user: { id: string; email: string; name: string };
+  }): MerchantTeamMember {
+    return { ...member, createdAt: member.createdAt.toISOString() };
+  }
+
+  private serializeInvitation(invitation: {
+    id: string;
+    email: string;
+    role: MembershipRole;
+    expiresAt: Date;
+    createdAt: Date;
+  }): MerchantInvitation {
+    return {
+      ...invitation,
+      expiresAt: invitation.expiresAt.toISOString(),
+      createdAt: invitation.createdAt.toISOString(),
+    };
   }
 
   private async requireMembership(userId: string) {

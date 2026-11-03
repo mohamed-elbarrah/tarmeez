@@ -1,14 +1,25 @@
 {
   "name": "@tarmeez/types",
   "version": "0.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Shared API and domain types for Tarmeez",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
   "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "echo \"No tests yet for @tarmeez/types\""
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "module",
-  "private": true
+  "devDependencies": {
+    "typescript": "^6.0.2"
+  }
 }

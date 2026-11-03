@@ -7,23 +7,23 @@
   "license": "UNLICENSED",
   "type": "module",
   "scripts": {
-    "build": "pnpm prisma:generate && nest build",
-    "dev": "pnpm prisma:generate && cross-env PORT=4000 nest start --watch",
+    "build": "pnpm --filter @tarmeez/types build && pnpm prisma:generate && nest build",
+    "dev": "pnpm --filter @tarmeez/types build && pnpm prisma:generate && cross-env PORT=4000 nest start --watch",
     "deploy": "nest deploy",
     "admin:bootstrap": "pnpm build && node dist/cli/bootstrap-admin.js",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
-    "start": "pnpm prisma:generate && nest start",
-    "start:dev": "pnpm prisma:generate && cross-env PORT=4000 nest start --watch",
-    "start:debug": "nest start --debug --watch",
+    "start": "pnpm --filter @tarmeez/types build && pnpm prisma:generate && nest start",
+    "start:dev": "pnpm --filter @tarmeez/types build && pnpm prisma:generate && cross-env PORT=4000 nest start --watch",
+    "start:debug": "pnpm --filter @tarmeez/types build && pnpm prisma:generate && nest start --debug --watch",
     "start:prod": "node dist/main",
-    "lint": "oxlint --type-aware src/ test/",
+    "lint": "pnpm --filter @tarmeez/types build && oxlint --type-aware src/ test/",
     "prisma:generate": "prisma generate",
-    "typecheck": "pnpm prisma:generate && tsc --noEmit",
-    "test": "pnpm prisma:generate && vitest run",
-    "test:watch": "vitest",
-    "test:cov": "vitest run --coverage",
-    "test:debug": "vitest --inspect-brk --no-file-parallelism",
-    "test:e2e": "pnpm prisma:generate && vitest run --config ./vitest.config.e2e.ts"
+    "typecheck": "pnpm --filter @tarmeez/types build && pnpm prisma:generate && tsc --noEmit",
+    "test": "pnpm --filter @tarmeez/types build && pnpm prisma:generate && vitest run",
+    "test:watch": "pnpm --filter @tarmeez/types build && vitest",
+    "test:cov": "pnpm --filter @tarmeez/types build && vitest run --coverage",
+    "test:debug": "pnpm --filter @tarmeez/types build && vitest --inspect-brk --no-file-parallelism",
+    "test:e2e": "pnpm --filter @tarmeez/types build && pnpm prisma:generate && vitest run --config ./vitest.config.e2e.ts"
   },
   "dependencies": {
     "@nestjs/bullmq": "^12.0.0",
@@ -50,6 +50,7 @@
     "rxjs": "^7.8.1"
   },
   "devDependencies": {
+    "@tarmeez/types": "workspace:*",
     "@nestjs/cli": "^12.0.0",
     "@nestjs/mau": "^0.2.6",
     "@nestjs/schematics": "^12.0.0",

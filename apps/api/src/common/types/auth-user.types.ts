@@ -1,6 +1,1 @@
-import type { UserRole } from '../../generated/prisma/client.js';
-
-export interface AuthUser {
-  id: string;
-  role: UserRole;
-}
+export type { AuthUser } from '@tarmeez/types';
