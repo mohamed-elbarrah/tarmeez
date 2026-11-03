@@ -28,6 +28,7 @@ interface VerifySignupOtpInput {
 
 interface IssueOtpInput {
   merchantId: string;
+  purpose: EmailOtpPurpose;
   codeHash: string;
   expiresAt: Date;
   now: Date;
@@ -68,7 +69,7 @@ export class AuthRepository {
     });
   }
 
-  async issueSignupOtp(input: IssueOtpInput): Promise<boolean> {
+  async issueOtp(input: IssueOtpInput): Promise<boolean> {
     return this.prisma.$transaction(
       async (transaction) => {
         const merchant = await transaction.merchant.findUnique({
@@ -77,8 +78,11 @@ export class AuthRepository {
         });
         if (
           !merchant ||
-          merchant.emailVerifiedAt ||
-          merchant.status !== MerchantStatus.ACTIVE
+          merchant.status !== MerchantStatus.ACTIVE ||
+          (input.purpose === EmailOtpPurpose.SIGNUP_VERIFICATION &&
+            merchant.emailVerifiedAt) ||
+          (input.purpose === EmailOtpPurpose.PASSWORD_RESET &&
+            !merchant.emailVerifiedAt)
         ) {
           return false;
         }
@@ -87,7 +91,7 @@ export class AuthRepository {
           where: {
             merchantId_purpose: {
               merchantId: input.merchantId,
-              purpose: EmailOtpPurpose.SIGNUP_VERIFICATION,
+              purpose: input.purpose,
             },
           },
         });
@@ -103,12 +107,12 @@ export class AuthRepository {
           where: {
             merchantId_purpose: {
               merchantId: input.merchantId,
-              purpose: EmailOtpPurpose.SIGNUP_VERIFICATION,
+              purpose: input.purpose,
             },
           },
           create: {
             merchantId: input.merchantId,
-            purpose: EmailOtpPurpose.SIGNUP_VERIFICATION,
+            purpose: input.purpose,
             codeHash: input.codeHash,
             expiresAt: input.expiresAt,
             lastSentAt: input.now,
@@ -254,11 +258,182 @@ export class AuthRepository {
     );
   }
 
-  async invalidateSignupOtp(merchantId: string, now: Date): Promise<void> {
+  async createRefreshToken(input: {
+    merchantId: string;
+    tokenHash: string;
+    familyId: string;
+    expiresAt: Date;
+  }): Promise<void> {
+    await this.prisma.refreshToken.create({ data: input });
+  }
+
+  async rotateRefreshToken(input: {
+    oldTokenHash: string;
+    newTokenHash: string;
+    newTokenExpiresAt: Date;
+    now: Date;
+  }) {
+    return this.prisma.$transaction(
+      async (transaction) => {
+        const existing = await transaction.refreshToken.findUnique({
+          where: { tokenHash: input.oldTokenHash },
+          include: {
+            merchant: {
+              select: {
+                id: true,
+                email: true,
+                name: true,
+                role: true,
+                status: true,
+                emailVerifiedAt: true,
+              },
+            },
+          },
+        });
+        if (!existing) return { status: 'INVALID' as const };
+
+        if (existing.revokedAt) {
+          await transaction.refreshToken.updateMany({
+            where: { familyId: existing.familyId, revokedAt: null },
+            data: { revokedAt: input.now },
+          });
+          return { status: 'REUSED' as const };
+        }
+        if (
+          existing.expiresAt <= input.now ||
+          existing.merchant.status !== MerchantStatus.ACTIVE ||
+          !existing.merchant.emailVerifiedAt
+        ) {
+          return { status: 'INVALID' as const };
+        }
+
+        const revoked = await transaction.refreshToken.updateMany({
+          where: {
+            id: existing.id,
+            revokedAt: null,
+            expiresAt: { gt: input.now },
+          },
+          data: { revokedAt: input.now },
+        });
+        if (revoked.count !== 1) return { status: 'INVALID' as const };
+
+        await transaction.refreshToken.create({
+          data: {
+            merchantId: existing.merchant.id,
+            tokenHash: input.newTokenHash,
+            familyId: existing.familyId,
+            expiresAt: input.newTokenExpiresAt,
+          },
+        });
+        return {
+          status: 'ROTATED' as const,
+          user: {
+            id: existing.merchant.id,
+            email: existing.merchant.email,
+            name: existing.merchant.name,
+            role: existing.merchant.role,
+          },
+        };
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
+  }
+
+  async revokeRefreshToken(tokenHash: string, now: Date): Promise<void> {
+    await this.prisma.refreshToken.updateMany({
+      where: { tokenHash, revokedAt: null },
+      data: { revokedAt: now },
+    });
+  }
+
+  async resetPasswordWithOtp(input: {
+    email: string;
+    codeHash: string;
+    passwordHash: string;
+    now: Date;
+    maxAttempts: number;
+  }): Promise<'RESET' | 'INVALID' | 'ATTEMPTS_EXCEEDED'> {
+    return this.prisma.$transaction(
+      async (transaction) => {
+        const merchant = await transaction.merchant.findUnique({
+          where: { email: input.email },
+          select: { id: true, emailVerifiedAt: true, status: true },
+        });
+        if (
+          !merchant ||
+          !merchant.emailVerifiedAt ||
+          merchant.status !== MerchantStatus.ACTIVE
+        )
+          return 'INVALID';
+
+        const otp = await transaction.emailOtp.findUnique({
+          where: {
+            merchantId_purpose: {
+              merchantId: merchant.id,
+              purpose: EmailOtpPurpose.PASSWORD_RESET,
+            },
+          },
+        });
+        if (!otp || otp.consumedAt || otp.expiresAt <= input.now)
+          return 'INVALID';
+        if (otp.attempts >= input.maxAttempts) return 'ATTEMPTS_EXCEEDED';
+
+        const expected = Buffer.from(otp.codeHash, 'hex');
+        const actual = Buffer.from(input.codeHash, 'hex');
+        const matches =
+          expected.length === actual.length &&
+          timingSafeEqual(expected, actual);
+        if (!matches) {
+          const attempts = otp.attempts + 1;
+          await transaction.emailOtp.updateMany({
+            where: { id: otp.id, attempts: otp.attempts, consumedAt: null },
+            data: {
+              attempts,
+              ...(attempts >= input.maxAttempts
+                ? { consumedAt: input.now }
+                : {}),
+            },
+          });
+          return attempts >= input.maxAttempts
+            ? 'ATTEMPTS_EXCEEDED'
+            : 'INVALID';
+        }
+
+        const consumed = await transaction.emailOtp.updateMany({
+          where: {
+            id: otp.id,
+            codeHash: input.codeHash,
+            consumedAt: null,
+            expiresAt: { gt: input.now },
+            attempts: { lt: input.maxAttempts },
+          },
+          data: { consumedAt: input.now },
+        });
+        if (consumed.count !== 1) return 'INVALID';
+
+        await transaction.merchant.update({
+          where: { id: merchant.id },
+          data: { passwordHash: input.passwordHash },
+        });
+        await transaction.refreshToken.updateMany({
+          where: { merchantId: merchant.id, revokedAt: null },
+          data: { revokedAt: input.now },
+        });
+        return 'RESET';
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
+  }
+
+  async invalidateOtp(
+    merchantId: string,
+    purpose: EmailOtpPurpose,
+    now: Date,
+  ): Promise<void> {
     await this.prisma.emailOtp.updateMany({
       where: {
         merchantId,
-        purpose: EmailOtpPurpose.SIGNUP_VERIFICATION,
+        purpose,
         consumedAt: null,
       },
       data: { consumedAt: now },

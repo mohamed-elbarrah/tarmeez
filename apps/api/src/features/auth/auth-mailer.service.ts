@@ -21,11 +21,34 @@ export class AuthMailerService {
   }
 
   async sendSignupVerificationCode(email: string, code: string): Promise<void> {
+    await this.sendCodeEmail(
+      email,
+      code,
+      'Verify your Tarmeez account',
+      'signup verification',
+    );
+  }
+
+  async sendPasswordResetCode(email: string, code: string): Promise<void> {
+    await this.sendCodeEmail(
+      email,
+      code,
+      'Reset your Tarmeez password',
+      'password reset',
+    );
+  }
+
+  private async sendCodeEmail(
+    email: string,
+    code: string,
+    subject: string,
+    purpose: string,
+  ): Promise<void> {
     await this.transporter.sendMail({
       from: this.from,
       to: email,
-      subject: 'Verify your Tarmeez account',
-      text: `Your Tarmeez verification code is ${code}. It expires shortly. If you did not request this, ignore this email.`,
+      subject,
+      text: `Your Tarmeez ${purpose} code is ${code}. It expires shortly. If you did not request this, ignore this email.`,
     });
   }
 }
