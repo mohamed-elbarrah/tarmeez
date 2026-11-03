@@ -7,4 +7,5 @@ export const authConfig = registerAs('auth', () => ({
     process.env.AUTH_OTP_RESEND_COOLDOWN_SECONDS ?? 60,
   ),
   otpMaxAttempts: Number(process.env.AUTH_OTP_MAX_ATTEMPTS ?? 5),
+  cookieSameSite: process.env.AUTH_COOKIE_SAME_SITE ?? 'lax',
 }));

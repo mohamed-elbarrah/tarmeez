@@ -297,7 +297,11 @@ export class AuthService {
       refreshTokenMaxAge: refresh.maxAge,
       refreshCookieName: REFRESH_COOKIE_NAME,
       refreshCookieSecure:
-        this.config.getOrThrow<string>('app.environment') === 'production',
+        this.config.getOrThrow<string>('app.environment') === 'production' ||
+        this.config.getOrThrow<string>('auth.cookieSameSite') === 'none',
+      refreshCookieSameSite: this.config.getOrThrow<string>(
+        'auth.cookieSameSite',
+      ),
     };
   }
 

@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { RedisThrottlerStorage } from './common/throttling/redis-throttler.storage.js';
+import { ThrottlerStorageModule } from './common/throttling/throttler-storage.module.js';
 import { AppConfigModule } from './config/config.module.js';
 import { AdminModule } from './features/admin/admin.module.js';
 import { AnalyticsModule } from './features/analytics/analytics.module.js';
@@ -13,7 +15,14 @@ import { PrismaModule } from './prisma/prisma.module.js';
 
 @Module({
   imports: [
-    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 100 }]),
+    ThrottlerModule.forRootAsync({
+      imports: [ThrottlerStorageModule],
+      inject: [RedisThrottlerStorage],
+      useFactory: (storage: RedisThrottlerStorage) => ({
+        throttlers: [{ ttl: 60_000, limit: 100 }],
+        storage,
+      }),
+    }),
     AppConfigModule,
     JobsModule,
     PrismaModule,

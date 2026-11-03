@@ -15,6 +15,9 @@ export class AuthMailerService {
       host: config.getOrThrow<string>('mail.host'),
       port: config.getOrThrow<number>('mail.port'),
       secure: config.getOrThrow<boolean>('mail.secure'),
+      connectionTimeout: 5_000,
+      greetingTimeout: 5_000,
+      socketTimeout: 10_000,
       ...(user && password ? { auth: { user, pass: password } } : {}),
     });
     this.from = config.getOrThrow<string>('mail.from');

@@ -14,6 +14,7 @@ const environmentSchema = Joi.object({
     .default('development'),
   PORT: Joi.number().integer().min(1).max(65535).default(4000),
   FRONTEND_URL: Joi.string().uri().default('http://localhost:3000'),
+  TRUST_PROXY_HOPS: Joi.number().integer().min(0).max(5).default(0),
   DATABASE_URL: Joi.string()
     .uri({ scheme: ['postgres', 'postgresql'] })
     .required(),
@@ -39,7 +40,10 @@ const environmentSchema = Joi.object({
     .max(3600)
     .default(60),
   AUTH_OTP_MAX_ATTEMPTS: Joi.number().integer().min(1).max(20).default(5),
-  SMTP_HOST: Joi.string().default('localhost'),
+  AUTH_COOKIE_SAME_SITE: Joi.string()
+    .valid('lax', 'strict', 'none')
+    .default('lax'),
+  SMTP_HOST: Joi.string().min(1).default('localhost'),
   SMTP_PORT: Joi.number().integer().min(1).max(65535).default(1025),
   SMTP_SECURE: Joi.boolean().truthy('true').falsy('false').default(false),
   SMTP_USER: Joi.string().allow('').default(''),
@@ -65,6 +69,47 @@ function validateEnvironment(
   });
   if (error) {
     throw error;
+  }
+
+  if (value.NODE_ENV === 'production') {
+    const requiredSecrets = [
+      value.JWT_ACCESS_SECRET,
+      value.JWT_REFRESH_SECRET,
+      value.AUTH_OTP_PEPPER,
+    ];
+    if (
+      requiredSecrets.some(
+        (secret) =>
+          typeof secret !== 'string' ||
+          secret.length < 32 ||
+          secret.startsWith('replace-with-'),
+      ) ||
+      new Set(requiredSecrets).size !== requiredSecrets.length
+    ) {
+      throw new Error(
+        'Production auth secrets must be unique, random, and configured.',
+      );
+    }
+
+    const frontendUrl = new URL(String(value.FRONTEND_URL));
+    if (frontendUrl.protocol !== 'https:') {
+      throw new Error('FRONTEND_URL must use HTTPS in production.');
+    }
+    if (
+      value.SMTP_HOST === 'localhost' ||
+      value.SMTP_PORT === 1025 ||
+      String(value.SMTP_FROM).includes('@localhost')
+    ) {
+      throw new Error(
+        'Production SMTP host, port, and sender must be configured.',
+      );
+    }
+  }
+
+  const smtpUser = String(value.SMTP_USER ?? '');
+  const smtpPassword = String(value.SMTP_PASSWORD ?? '');
+  if (Boolean(smtpUser) !== Boolean(smtpPassword)) {
+    throw new Error('SMTP_USER and SMTP_PASSWORD must be set together.');
   }
 
   return value as Record<string, unknown>;
