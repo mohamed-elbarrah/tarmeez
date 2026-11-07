@@ -4,7 +4,7 @@ import { AppModule } from './app.module.js';
 import { configureApp } from './common/configure-app.js';
 
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, { rawBody: true });
   configureApp(app);
 
   const config = app.get(ConfigService);

@@ -52,15 +52,17 @@ model User {
 }
 
 model Merchant {
-  id          String               @id @default(uuid())
-  ownerUserId String               @unique @map("owner_user_id")
-  name        String
-  status      MerchantStatus       @default(ACTIVE)
-  createdAt   DateTime             @default(now()) @map("created_at")
-  updatedAt   DateTime             @updatedAt @map("updated_at")
-  owner       User                 @relation("MerchantOwner", fields: [ownerUserId], references: [id], onDelete: Restrict)
-  memberships MerchantMembership[]
-  invitations Invitation[]
+  id                     String                  @id @default(uuid())
+  ownerUserId            String                  @unique @map("owner_user_id")
+  name                   String
+  status                 MerchantStatus          @default(ACTIVE)
+  createdAt              DateTime                @default(now()) @map("created_at")
+  updatedAt              DateTime                @updatedAt @map("updated_at")
+  owner                  User                    @relation("MerchantOwner", fields: [ownerUserId], references: [id], onDelete: Restrict)
+  memberships            MerchantMembership[]
+  invitations            Invitation[]
+  connections            StoreConnection[]
+  sallaConnectionIntents SallaConnectionIntent[]
 
   @@map("merchants")
 }
@@ -118,6 +120,52 @@ model EmailOtp {
   @@index([expiresAt])
   @@index([invitationId])
   @@map("email_otps")
+}
+
+enum StorePlatform {
+  SALLA
+}
+
+enum StoreConnectionStatus {
+  CONNECTED
+  REAUTH_REQUIRED
+  DISCONNECTED
+}
+
+model StoreConnection {
+  id                    String                @id @default(uuid())
+  merchantId            String                @map("merchant_id")
+  platform              StorePlatform
+  externalStoreId       String                @map("external_store_id")
+  storeName             String?               @map("store_name")
+  storeDomain           String?               @map("store_domain")
+  status                StoreConnectionStatus @default(CONNECTED)
+  accessTokenEncrypted  String                @map("access_token_encrypted")
+  refreshTokenEncrypted String?               @map("refresh_token_encrypted")
+  tokenExpiresAt        DateTime?             @map("token_expires_at")
+  connectedAt           DateTime              @default(now()) @map("connected_at")
+  verifiedAt            DateTime?             @map("verified_at")
+  createdAt             DateTime              @default(now()) @map("created_at")
+  updatedAt             DateTime              @updatedAt @map("updated_at")
+  merchant              Merchant              @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+
+  @@unique([platform, externalStoreId])
+  @@index([merchantId, platform])
+  @@map("store_connections")
+}
+
+model SallaConnectionIntent {
+  id                  String    @id @default(uuid())
+  merchantId          String    @map("merchant_id")
+  expectedStoreDomain String    @map("expected_store_domain")
+  expiresAt           DateTime  @map("expires_at")
+  completedAt         DateTime? @map("completed_at")
+  createdAt           DateTime  @default(now()) @map("created_at")
+  merchant            Merchant  @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+
+  @@index([expectedStoreDomain, expiresAt, completedAt])
+  @@index([merchantId, createdAt])
+  @@map("salla_connection_intents")
 }
 
 model RefreshToken {
