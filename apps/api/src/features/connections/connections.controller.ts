@@ -8,6 +8,7 @@ import {
   HttpStatus,
   Param,
   Post,
+  Query,
   Req,
   UseGuards,
 } from '@nestjs/common';
@@ -21,10 +22,16 @@ import { RolesGuard } from '../../common/guards/roles.guard.js';
 import type { AuthUser } from '../../common/types/auth-user.types.js';
 import { StartSallaConnectionDto } from './dto/start-salla-connection.dto.js';
 import { ConnectionsService } from './connections.service.js';
+import { CommerceSyncService } from './commerce-sync.service.js';
+import { StartSyncDto } from './dto/start-sync.dto.js';
+import { CommerceDataQueryDto } from './dto/commerce-data-query.dto.js';
 
 @Controller()
 export class ConnectionsController {
-  constructor(private readonly connections: ConnectionsService) {}
+  constructor(
+    private readonly connections: ConnectionsService,
+    private readonly sync: CommerceSyncService,
+  ) {}
 
   @Post('connections/salla/start')
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -48,6 +55,78 @@ export class ConnectionsController {
       { signature, authorization, strategy },
       request.rawBody,
       body,
+    );
+  }
+
+  @Post('connections/:connectionId/sync')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.MERCHANT)
+  startSync(
+    @CurrentUser() user: AuthUser,
+    @Param('connectionId') connectionId: string,
+    @Body() input: StartSyncDto,
+  ) {
+    return this.sync.enqueue(user.id, connectionId, input.resource);
+  }
+
+  @Get('connections/:connectionId/sync-runs')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.MERCHANT)
+  getSyncRuns(
+    @CurrentUser() user: AuthUser,
+    @Param('connectionId') connectionId: string,
+  ) {
+    return this.sync.status(user.id, connectionId);
+  }
+
+  @Get('connections/:connectionId/products')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.MERCHANT)
+  products(
+    @CurrentUser() user: AuthUser,
+    @Param('connectionId') connectionId: string,
+    @Query() query: CommerceDataQueryDto,
+  ) {
+    return this.sync.data(
+      user.id,
+      connectionId,
+      'PRODUCTS',
+      query.page,
+      query.perPage,
+    );
+  }
+
+  @Get('connections/:connectionId/customers')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.MERCHANT)
+  customers(
+    @CurrentUser() user: AuthUser,
+    @Param('connectionId') connectionId: string,
+    @Query() query: CommerceDataQueryDto,
+  ) {
+    return this.sync.data(
+      user.id,
+      connectionId,
+      'CUSTOMERS',
+      query.page,
+      query.perPage,
+    );
+  }
+
+  @Get('connections/:connectionId/orders')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.MERCHANT)
+  orders(
+    @CurrentUser() user: AuthUser,
+    @Param('connectionId') connectionId: string,
+    @Query() query: CommerceDataQueryDto,
+  ) {
+    return this.sync.data(
+      user.id,
+      connectionId,
+      'ORDERS',
+      query.page,
+      query.perPage,
     );
   }
 

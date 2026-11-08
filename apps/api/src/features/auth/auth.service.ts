@@ -145,13 +145,15 @@ export class AuthService {
     if (shouldSend && userId) {
       try {
         await this.authMailer.sendSignupVerificationCode(email, code);
-      } catch {
+      } catch (error) {
         await this.authRepository.invalidateOtp(
           userId,
           EmailOtpPurpose.SIGNUP_VERIFICATION,
           new Date(),
         );
-        this.logger.error('Signup verification email delivery failed');
+        this.logger.error(
+          `Signup verification email delivery failed: ${error instanceof Error ? error.message : String(error)}`,
+        );
         throw new AppException(
           'errors.auth.email_delivery_failed',
           HttpStatus.SERVICE_UNAVAILABLE,

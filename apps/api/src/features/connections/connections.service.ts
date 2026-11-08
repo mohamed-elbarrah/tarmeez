@@ -15,6 +15,8 @@ import {
 } from 'node:crypto';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { SallaProvider } from './salla.provider.js';
+import type { SyncResource } from './salla.provider.js';
+import { CommerceSyncService } from './commerce-sync.service.js';
 
 const INTENT_TTL_MS = 15 * 60 * 1000;
 
@@ -24,6 +26,7 @@ export class ConnectionsService {
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
     private readonly salla: SallaProvider,
+    private readonly commerceSync: CommerceSyncService,
   ) {}
 
   async startSalla(userId: string, storeUrl: string) {
@@ -101,7 +104,21 @@ export class ConnectionsService {
       eventName !== 'app.store.authorize' &&
       eventName !== 'app.store.authorized'
     ) {
-      return { received: true, processed: false };
+      const resource = resourceForEvent(eventName);
+      if (!resource) return { received: true, processed: false };
+      const storeId =
+        readExternalStoreId(eventData) ?? readExternalStoreId(body);
+      if (!storeId)
+        return { received: true, processed: false, reason: 'store_id_missing' };
+      const queued = await this.commerceSync.enqueueWebhookSync(
+        storeId,
+        resource,
+      );
+      return {
+        received: true,
+        processed: queued.queued,
+        syncRunId: queued.syncRunId,
+      };
     }
 
     const accessToken = eventData.access_token ?? body.access_token;
@@ -316,4 +333,27 @@ function normalizeDomain(input: string): string {
 
 function isRecord(value: unknown): value is Record<string, any> {
   return typeof value === 'object' && value !== null;
+}
+
+function resourceForEvent(event: unknown): SyncResource | undefined {
+  if (typeof event !== 'string') return undefined;
+  if (event.startsWith('product.')) return 'PRODUCTS';
+  if (event.startsWith('customer.')) return 'CUSTOMERS';
+  if (event.startsWith('order.')) return 'ORDERS';
+  return undefined;
+}
+
+function readExternalStoreId(value: Record<string, any>): string | undefined {
+  const direct = value.store_id ?? value.merchant_id;
+  if (typeof direct === 'string' || typeof direct === 'number')
+    return String(direct);
+  for (const key of ['store', 'merchant']) {
+    const nestedValue = value[key];
+    if (isRecord(nestedValue)) {
+      const id =
+        nestedValue.store_id ?? nestedValue.merchant_id ?? nestedValue.id;
+      if (typeof id === 'string' || typeof id === 'number') return String(id);
+    }
+  }
+  return undefined;
 }

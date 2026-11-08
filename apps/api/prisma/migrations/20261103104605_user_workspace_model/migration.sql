@@ -94,6 +94,12 @@ CREATE TABLE "invitations" (
 ALTER TABLE "email_otps" RENAME COLUMN "merchant_id" TO "user_id";
 ALTER TABLE "refresh_tokens" RENAME COLUMN "merchant_id" TO "user_id";
 
+-- The Salla connection migration ran before the workspace migration and initially
+-- referenced the legacy merchant table. Drop those foreign keys before removing
+-- the legacy table; the constraints are recreated against the new workspaces below.
+ALTER TABLE "store_connections" DROP CONSTRAINT "store_connections_merchant_id_fkey";
+ALTER TABLE "salla_connection_intents" DROP CONSTRAINT "salla_connection_intents_merchant_id_fkey";
+
 DROP TABLE "legacy_merchant_accounts";
 
 CREATE UNIQUE INDEX "users_email_key" ON "users"("email");
@@ -129,3 +135,9 @@ ALTER TABLE "email_otps"
 ALTER TABLE "refresh_tokens"
     ADD CONSTRAINT "refresh_tokens_user_id_fkey"
     FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "store_connections"
+    ADD CONSTRAINT "store_connections_merchant_id_fkey"
+    FOREIGN KEY ("merchant_id") REFERENCES "merchants"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "salla_connection_intents"
+    ADD CONSTRAINT "salla_connection_intents_merchant_id_fkey"
+    FOREIGN KEY ("merchant_id") REFERENCES "merchants"("id") ON DELETE CASCADE ON UPDATE CASCADE;
