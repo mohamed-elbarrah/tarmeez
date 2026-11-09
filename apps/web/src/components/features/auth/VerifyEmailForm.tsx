@@ -16,7 +16,7 @@ export function VerifyEmailForm({ email }: VerifyEmailFormProps) {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    try { await verify({ email, code }).unwrap(); router.replace("/welcome"); }
+    try { const session = await verify({ email, code }).unwrap(); router.replace(session.user.role === "MERCHANT" ? "/dashboard" : "/welcome"); }
     catch { /* Error is rendered from the mutation state. */ }
   }
 

@@ -16,8 +16,8 @@ export function LoginForm() {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     try {
-      await login({ email: email.trim().toLowerCase(), password }).unwrap();
-      router.replace("/welcome");
+      const session = await login({ email: email.trim().toLowerCase(), password }).unwrap();
+      router.replace(session.user.role === "MERCHANT" ? "/dashboard" : "/welcome");
     } catch { /* Error is rendered from the mutation state. */ }
   }
 

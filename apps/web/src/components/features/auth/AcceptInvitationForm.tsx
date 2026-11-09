@@ -16,7 +16,7 @@ export function AcceptInvitationForm({ invitationToken }: AcceptInvitationFormPr
   const [password, setPassword] = useState("");
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    try { await acceptInvitation({ email: email.trim().toLowerCase(), password, invitationToken }).unwrap(); router.replace("/welcome"); }
+    try { await acceptInvitation({ email: email.trim().toLowerCase(), password, invitationToken }).unwrap(); router.replace("/dashboard"); }
     catch { /* Error is rendered from the mutation state. */ }
   }
   return <form onSubmit={handleSubmit} className="space-y-5">

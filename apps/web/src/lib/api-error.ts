@@ -27,7 +27,11 @@ export function getApiErrorMessage(error: unknown): string {
     if (error.status === "TIMEOUT_ERROR") return "The request took too long. Please try again.";
     if (error.status === 401) return "The email or password is incorrect. Please try again.";
     if (error.status === 400) return "Please check the information you entered and try again.";
-    if (error.status === 404) return "The requested service endpoint was not found. Check the API URL configuration.";
+    if (error.status === 403) return "You don’t have permission to perform this action. Workspace owners can manage connections and team access.";
+    if (error.status === 404) return "This workspace record could not be found or is no longer available.";
+    if (error.status === 409) return "This action conflicts with the current store or workspace state. Check its status and try again.";
+    if (error.status === 429) return "Too many requests. Wait a moment and try again.";
+    if (error.status === 503) return "This service is temporarily unavailable. Please try again shortly.";
     if (typeof error.status === "number" && error.status >= 500) return "Something went wrong on our side. Please try again shortly.";
   }
   return "We couldn’t complete that request. Please check your details and try again.";
