@@ -51,7 +51,7 @@ const environmentSchema = Joi.object({
   SMTP_FROM: Joi.string().min(1).default('Tarmeez <no-reply@localhost>'),
   REDIS_HOST: Joi.string().min(1).default('localhost'),
   REDIS_PORT: Joi.number().integer().min(1).max(65535).default(6379),
-  SALLA_APP_ID: Joi.string().allow('').optional(),
+  SALLA_ENABLED: Joi.boolean().truthy('true').falsy('false').default(false),
   SALLA_CLIENT_ID: Joi.string().allow('').optional(),
   SALLA_CLIENT_SECRET: Joi.string().allow('').optional(),
   SALLA_REDIRECT_URI: Joi.string().uri().allow('').optional(),
@@ -63,7 +63,7 @@ const environmentSchema = Joi.object({
   META_APP_SECRET: Joi.string().allow('').optional(),
 }).unknown(true);
 
-function validateEnvironment(
+export function validateEnvironment(
   config: Record<string, unknown>,
 ): Record<string, unknown> {
   const { error, value } = environmentSchema.validate(config, {
@@ -72,6 +72,35 @@ function validateEnvironment(
   });
   if (error) {
     throw error;
+  }
+
+  if (value.SALLA_ENABLED) {
+    const missingSallaSettings = [
+      'SALLA_CLIENT_ID',
+      'SALLA_CLIENT_SECRET',
+      'SALLA_REDIRECT_URI',
+      'SALLA_TOKEN_ENCRYPTION_KEY',
+      'SALLA_WEBHOOK_SECRET',
+    ].filter((key) => {
+      const setting = value[key];
+      return typeof setting !== 'string' || setting.trim().length === 0;
+    });
+    if (missingSallaSettings.length > 0) {
+      throw new Error(
+        'SALLA_CLIENT_ID, SALLA_CLIENT_SECRET, SALLA_REDIRECT_URI, SALLA_TOKEN_ENCRYPTION_KEY, and SALLA_WEBHOOK_SECRET are required when SALLA_ENABLED=true.',
+      );
+    }
+
+    const encryptionKey = String(value.SALLA_TOKEN_ENCRYPTION_KEY);
+    if (
+      !/^[A-Za-z0-9+/]+={0,2}$/.test(encryptionKey) ||
+      encryptionKey.length % 4 !== 0 ||
+      Buffer.from(encryptionKey, 'base64').length !== 32
+    ) {
+      throw new Error(
+        'SALLA_TOKEN_ENCRYPTION_KEY must be a base64-encoded 32-byte key.',
+      );
+    }
   }
 
   if (value.NODE_ENV === 'production') {
@@ -106,6 +135,15 @@ function validateEnvironment(
       throw new Error(
         'Production SMTP host, port, and sender must be configured.',
       );
+    }
+
+    if (value.SALLA_ENABLED) {
+      const redirectUri = new URL(String(value.SALLA_REDIRECT_URI));
+      if (redirectUri.protocol !== 'https:') {
+        throw new Error(
+          'SALLA_REDIRECT_URI must use HTTPS when Salla is enabled in production.',
+        );
+      }
     }
   }
 

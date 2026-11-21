@@ -9,6 +9,10 @@ import {
   COMMERCE_SYNC_QUEUE,
 } from './commerce-sync.service.js';
 import { SallaProvider } from './salla.provider.js';
+import { ConnectionsRepository } from './connections.repository.js';
+import { SallaOAuthRepository } from './salla-oauth.repository.js';
+import { AuditRepository } from './audit.repository.js';
+import { AuditService } from './audit.service.js';
 
 @Module({
   imports: [BullModule.registerQueue({ name: COMMERCE_SYNC_QUEUE })],
@@ -19,6 +23,10 @@ import { SallaProvider } from './salla.provider.js';
     CommerceSyncService,
     CommerceSyncProcessor,
     SallaProvider,
+    ConnectionsRepository,
+    SallaOAuthRepository,
+    AuditRepository,
+    AuditService,
   ],
 })
 export class ConnectionsModule {}

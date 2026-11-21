@@ -1,6 +1,8 @@
 import { Injectable, ServiceUnavailableException } from '@nestjs/common';
 
 const SALLA_USER_INFO_URL = 'https://accounts.salla.sa/oauth2/user/info';
+const SALLA_AUTHORIZATION_URL = 'https://accounts.salla.sa/oauth2/auth';
+const SALLA_TOKEN_URL = 'https://accounts.salla.sa/oauth2/token';
 const SALLA_API_BASE = 'https://api.salla.dev/admin/v2';
 const PAGE_SIZE = 50;
 
@@ -18,8 +20,72 @@ export interface SallaRefreshedTokens {
   expires?: number;
 }
 
+export interface SallaAuthorizationTokens extends SallaRefreshedTokens {}
+
+export class SallaTokenError extends Error {
+  constructor(readonly kind: 'INVALID_GRANT' | 'TRANSIENT', message: string) {
+    super(message);
+    this.name = 'SallaTokenError';
+  }
+}
+
+export class SallaPaginationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'SallaPaginationError';
+  }
+}
+
 @Injectable()
 export class SallaProvider {
+  buildAuthorizationUrl(input: {
+    clientId: string;
+    redirectUri: string;
+    state: string;
+    scope?: string[];
+  }): URL {
+    const url = new URL(SALLA_AUTHORIZATION_URL);
+    url.searchParams.set('client_id', input.clientId);
+    url.searchParams.set('redirect_uri', input.redirectUri);
+    url.searchParams.set('response_type', 'code');
+    url.searchParams.set('scope', (input.scope ?? ['offline_access']).join(' '));
+    url.searchParams.set('state', input.state);
+    return url;
+  }
+
+  async exchangeAuthorizationCode(
+    code: string,
+    clientId: string,
+    clientSecret: string,
+    redirectUri: string,
+  ): Promise<SallaAuthorizationTokens> {
+    const response = await fetchTokenResponse(
+      SALLA_TOKEN_URL,
+      {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/x-www-form-urlencoded',
+          accept: 'application/json',
+        },
+        body: new URLSearchParams({
+          grant_type: 'authorization_code',
+          code,
+          client_id: clientId,
+          client_secret: clientSecret,
+          redirect_uri: redirectUri,
+        }),
+        signal: AbortSignal.timeout(15_000),
+      },
+      'Salla authorization-code exchange unavailable',
+    );
+    const payload: unknown = await response.json().catch(() => null);
+    const tokens = parseTokenResponse(payload);
+    if (!response.ok || !tokens) {
+      throw tokenFailure(payload, 'Salla authorization-code exchange failed');
+    }
+    return tokens;
+  }
+
   async getStoreIdentity(
     accessToken: string,
   ): Promise<{ id: string; name?: string; domain?: string }> {
@@ -62,30 +128,30 @@ export class SallaProvider {
     clientId: string,
     clientSecret: string,
   ): Promise<SallaRefreshedTokens> {
-    const response = await fetch('https://accounts.salla.sa/oauth2/token', {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/x-www-form-urlencoded',
-        accept: 'application/json',
+    const response = await fetchTokenResponse(
+      SALLA_TOKEN_URL,
+      {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/x-www-form-urlencoded',
+          accept: 'application/json',
+        },
+        body: new URLSearchParams({
+          grant_type: 'refresh_token',
+          refresh_token: refreshToken,
+          client_id: clientId,
+          client_secret: clientSecret,
+        }),
+        signal: AbortSignal.timeout(15_000),
       },
-      body: new URLSearchParams({
-        grant_type: 'refresh_token',
-        refresh_token: refreshToken,
-        client_id: clientId,
-        client_secret: clientSecret,
-      }),
-      signal: AbortSignal.timeout(15_000),
-    });
+      'Salla token refresh unavailable',
+    );
     const payload: unknown = await response.json().catch(() => null);
-    if (
-      !response.ok ||
-      !isRecord(payload) ||
-      typeof payload.access_token !== 'string' ||
-      typeof payload.refresh_token !== 'string'
-    ) {
-      throw new ServiceUnavailableException('Salla token refresh failed');
+    const tokens = parseTokenResponse(payload);
+    if (!response.ok || !tokens) {
+      throw tokenFailure(payload, 'Salla token refresh failed');
     }
-    return payload as unknown as SallaRefreshedTokens;
+    return tokens;
   }
 
   async fetchPage(
@@ -137,6 +203,10 @@ export class SallaProvider {
       pagination && isRecord(pagination.links) ? pagination.links : undefined;
     const hasNextLink =
       typeof links?.next === 'string' && links.next.length > 0;
+    const hasPaginationMetadata =
+      totalPages !== undefined || totalRecords !== undefined || hasNextLink;
+    if (!hasPaginationMetadata && records.length === PAGE_SIZE)
+      throw new SallaPaginationError('Salla pagination metadata is missing');
     const hasMore =
       totalPages !== undefined
         ? currentPage < totalPages
@@ -149,6 +219,57 @@ export class SallaProvider {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+async function fetchTokenResponse(
+  input: RequestInfo | URL,
+  init: RequestInit,
+  unavailableMessage: string,
+): Promise<Response> {
+  try {
+    return await fetch(input, init);
+  } catch {
+    throw new SallaTokenError('TRANSIENT', unavailableMessage);
+  }
+}
+
+function tokenFailure(payload: unknown, message: string): SallaTokenError {
+  if (isRecord(payload)) {
+    const code = payload.error ?? payload.code;
+    if (typeof code === 'string' && ['invalid_grant', 'unauthorized', 'invalid_token'].includes(code.toLowerCase()))
+      return new SallaTokenError('INVALID_GRANT', message);
+  }
+  return new SallaTokenError('TRANSIENT', message);
+}
+
+function parseTokenResponse(payload: unknown): SallaRefreshedTokens | undefined {
+  if (!isRecord(payload)) return undefined;
+  if (
+    typeof payload.access_token !== 'string' ||
+    payload.access_token.length === 0 ||
+    typeof payload.refresh_token !== 'string' ||
+    payload.refresh_token.length === 0
+  ) {
+    return undefined;
+  }
+  if (
+    ('expires_in' in payload && !isNumericExpiry(payload.expires_in)) ||
+    ('expires' in payload && !isNumericExpiry(payload.expires))
+  ) {
+    return undefined;
+  }
+  return {
+    access_token: payload.access_token,
+    refresh_token: payload.refresh_token,
+    ...(typeof payload.expires_in === 'number'
+      ? { expires_in: payload.expires_in }
+      : {}),
+    ...(typeof payload.expires === 'number' ? { expires: payload.expires } : {}),
+  };
+}
+
+function isNumericExpiry(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0;
 }
 
 function readNumber(

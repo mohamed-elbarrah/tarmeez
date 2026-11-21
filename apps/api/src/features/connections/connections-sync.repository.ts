@@ -12,7 +12,7 @@ export class ConnectionsSyncRepository {
   findMembership(userId: string) {
     return this.prisma.merchantMembership.findUnique({
       where: { userId },
-      select: { merchantId: true, role: true },
+       select: { merchantId: true, role: true, merchant: { select: { status: true } } },
     });
   }
 
@@ -41,6 +41,43 @@ export class ConnectionsSyncRepository {
 
   createRun(connectionId: string, resource: 'ALL' | SyncResource) {
     return this.prisma.syncRun.create({ data: { connectionId, resource } });
+  }
+
+  async createWebhookRun(
+    connectionId: string,
+    resource: SyncResource,
+    dedupeKey: string,
+  ) {
+    try {
+      const run = await this.prisma.syncRun.create({
+        data: { connectionId, resource, dedupeKey },
+      });
+      return { run, created: true } as const;
+    } catch (error) {
+      if (!isUniqueViolation(error)) throw error;
+      const run = await this.prisma.syncRun.findUniqueOrThrow({
+        where: { dedupeKey },
+      });
+      return { run, created: false } as const;
+    }
+  }
+
+  deleteQueuedRun(id: string) {
+    return this.prisma.syncRun.deleteMany({ where: { id, status: 'QUEUED' } });
+  }
+
+  async requeueFailedRun(id: string) {
+    const result = await this.prisma.syncRun.updateMany({
+      where: { id, status: 'FAILED' },
+      data: {
+        status: 'QUEUED',
+        errorKey: null,
+        errorMessage: null,
+        startedAt: null,
+        finishedAt: null,
+      },
+    });
+    return result.count === 1;
   }
 
   findRun(id: string) {
@@ -354,6 +391,15 @@ export class ConnectionsSyncRepository {
       }
     });
   }
+}
+
+function isUniqueViolation(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    error.code === 'P2002'
+  );
 }
 
 function customerValues(row: Row) {

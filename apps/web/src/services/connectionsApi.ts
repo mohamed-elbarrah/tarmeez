@@ -1,6 +1,6 @@
 import { baseApi } from "@/services/baseApi";
 import type { ApiEnvelope } from "@/types/auth.types";
-import type { CustomerRecord, OrderRecord, PaginatedResult, ProductRecord, StartConnectionResult, StartSyncResult, StoreConnection, SyncResource, SyncRun } from "@/types/merchant.types";
+import type { CustomerRecord, OrderRecord, PaginatedResult, ProductRecord, SallaIntentStatusResult, StartConnectionResult, StartSyncResult, StoreConnection, SyncResource, SyncRun } from "@/types/merchant.types";
 
 interface DataQuery { connectionId: string; page: number; perPage: number }
 interface PaginatedEnvelope<T> {
@@ -20,9 +20,18 @@ export const connectionsApi = baseApi.injectEndpoints({
       transformResponse: (response: ApiEnvelope<StoreConnection[]>) => response.data,
       providesTags: ["Connection"],
     }),
-    startSallaConnection: builder.mutation<StartConnectionResult, { storeUrl: string }>({
-      query: (body) => ({ url: "connections/salla/start", method: "POST", body }),
+    startSallaConnection: builder.mutation<StartConnectionResult, void>({
+      query: () => ({ url: "connections/salla/start", method: "POST", body: {} }),
       transformResponse: (response: ApiEnvelope<StartConnectionResult>) => response.data,
+    }),
+    getSallaIntentStatus: builder.query<SallaIntentStatusResult, string>({
+      query: (intentId) => `connections/salla/intents/${intentId}`,
+      transformResponse: (response: ApiEnvelope<SallaIntentStatusResult>) => response.data,
+      providesTags: (_result, _error, intentId) => [{ type: "ConnectionIntent", id: intentId }],
+    }),
+    cancelSallaIntent: builder.mutation<void, string>({
+      query: (intentId) => ({ url: `connections/salla/intents/${intentId}`, method: "DELETE" }),
+      invalidatesTags: (_result, _error, intentId) => [{ type: "ConnectionIntent", id: intentId }],
     }),
     startSync: builder.mutation<StartSyncResult, { connectionId: string; resource: SyncResource }>({
       query: ({ connectionId, resource }) => ({ url: `connections/${connectionId}/sync`, method: "POST", body: { resource } }),
@@ -56,4 +65,4 @@ export const connectionsApi = baseApi.injectEndpoints({
   }),
 });
 
-export const { useGetConnectionsQuery, useStartSallaConnectionMutation, useStartSyncMutation, useGetSyncRunsQuery, useGetProductsQuery, useGetCustomersQuery, useGetOrdersQuery, useDisconnectConnectionMutation } = connectionsApi;
+export const { useGetConnectionsQuery, useStartSallaConnectionMutation, useGetSallaIntentStatusQuery, useCancelSallaIntentMutation, useStartSyncMutation, useGetSyncRunsQuery, useGetProductsQuery, useGetCustomersQuery, useGetOrdersQuery, useDisconnectConnectionMutation } = connectionsApi;

@@ -3,6 +3,7 @@ export type MerchantStatus = "ACTIVE" | "SUSPENDED";
 export type ConnectionStatus = "CONNECTED" | "REAUTH_REQUIRED" | "DISCONNECTED";
 export type SyncResource = "ALL" | "PRODUCTS" | "CUSTOMERS" | "ORDERS";
 export type SyncStatus = "QUEUED" | "RUNNING" | "SUCCEEDED" | "PARTIAL" | "FAILED";
+export type SallaIntentStatus = "INITIATED" | "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED" | "EXPIRED" | "CANCELLED";
 
 export interface MerchantProfile {
   role: MembershipRole;
@@ -116,8 +117,17 @@ export interface OrderRecord {
 
 export interface StartConnectionResult {
   intentId: string;
-  installationUrl: string;
+  authorizationUrl: string;
   expiresAt: string;
+}
+
+export interface SallaIntentStatusResult {
+  id: string;
+  status: SallaIntentStatus;
+  expiresAt: string;
+  completedAt: string | null;
+  failedAt: string | null;
+  failureCode: string | null;
 }
 
 export interface StartSyncResult {

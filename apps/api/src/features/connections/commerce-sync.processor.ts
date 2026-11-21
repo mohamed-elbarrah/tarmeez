@@ -17,6 +17,9 @@ export class CommerceSyncProcessor extends WorkerHost {
 
   async process(job: Job<SyncJobData>): Promise<void> {
     if (job.name !== 'sync-connection') return;
-    await this.sync.processRun(job.data.syncRunId);
+    await this.sync.processRun(job.data.syncRunId, {
+      attemptsMade: job.attemptsMade,
+      maxAttempts: job.opts.attempts ?? 1,
+    });
   }
 }

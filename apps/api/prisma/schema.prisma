@@ -47,6 +47,9 @@ model User {
   emailOtps       EmailOtp[]
   refreshTokens   RefreshToken[]
   sentInvitations Invitation[]        @relation("InvitationInviter")
+  ownedConnections StoreConnection[]
+  initiatedSallaConnectionIntents SallaConnectionIntent[]
+  auditLogs       AuditLog[]        @relation("AuditLogActor")
 
   @@map("users")
 }
@@ -66,6 +69,7 @@ model Merchant {
   commerceProducts       CommerceProduct[]
   commerceCustomers      CommerceCustomer[]
   commerceOrders         CommerceOrder[]
+  auditLogs              AuditLog[]
 
   @@map("merchants")
 }
@@ -150,9 +154,20 @@ enum SyncRunStatus {
   FAILED
 }
 
+enum SallaConnectionIntentStatus {
+  INITIATED
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  EXPIRED
+  CANCELLED
+}
+
 model StoreConnection {
   id                    String                @id @default(uuid())
   merchantId            String                @map("merchant_id")
+  ownerUserId           String                @map("owner_user_id")
   platform              StorePlatform
   externalStoreId       String                @map("external_store_id")
   storeName             String?               @map("store_name")
@@ -168,13 +183,16 @@ model StoreConnection {
   createdAt             DateTime              @default(now()) @map("created_at")
   updatedAt             DateTime              @updatedAt @map("updated_at")
   merchant              Merchant              @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  owner                 User                  @relation(fields: [ownerUserId], references: [id], onDelete: Restrict)
   products              CommerceProduct[]
   customers             CommerceCustomer[]
   orders                CommerceOrder[]
   syncRuns              SyncRun[]
+  sallaConnectionIntents SallaConnectionIntent[]
 
   @@unique([platform, externalStoreId])
   @@index([merchantId, platform])
+  @@index([ownerUserId, platform])
   @@map("store_connections")
 }
 
@@ -300,6 +318,7 @@ model SyncRun {
   finishedAt    DateTime?       @map("finished_at")
   createdAt     DateTime        @default(now()) @map("created_at")
   updatedAt     DateTime        @updatedAt @map("updated_at")
+  dedupeKey     String?         @unique @map("dedupe_key")
   connection    StoreConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
 
   @@index([connectionId, createdAt])
@@ -308,17 +327,48 @@ model SyncRun {
 }
 
 model SallaConnectionIntent {
-  id                  String    @id @default(uuid())
-  merchantId          String    @map("merchant_id")
-  expectedStoreDomain String    @map("expected_store_domain")
-  expiresAt           DateTime  @map("expires_at")
-  completedAt         DateTime? @map("completed_at")
-  createdAt           DateTime  @default(now()) @map("created_at")
-  merchant            Merchant  @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  id                  String                       @id @default(uuid())
+  merchantId          String                       @map("merchant_id")
+  initiatedByUserId   String                       @map("initiated_by_user_id")
+  stateHash           String?                      @unique @map("state_hash")
+  activeIntentKey     String?                      @unique @map("active_intent_key")
+  expectedStoreDomain String?                      @map("expected_store_domain")
+  expiresAt           DateTime                     @map("expires_at")
+  status              SallaConnectionIntentStatus @default(INITIATED)
+  consumedAt          DateTime?                    @map("consumed_at")
+  completedAt         DateTime?                    @map("completed_at")
+  failedAt            DateTime?                    @map("failed_at")
+  cancelledAt         DateTime?                    @map("cancelled_at")
+  failureCode         String?                      @map("failure_code")
+  connectionId        String?                      @map("connection_id")
+  createdAt           DateTime                     @default(now()) @map("created_at")
+  merchant            Merchant                     @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  initiatedBy         User                         @relation(fields: [initiatedByUserId], references: [id], onDelete: Restrict)
+  connection          StoreConnection?             @relation(fields: [connectionId], references: [id], onDelete: SetNull)
 
   @@index([expectedStoreDomain, expiresAt, completedAt])
   @@index([merchantId, createdAt])
+  @@index([initiatedByUserId, createdAt])
+  @@index([connectionId])
   @@map("salla_connection_intents")
+}
+
+model AuditLog {
+  id          String    @id @default(uuid())
+  merchantId  String?   @map("merchant_id")
+  actorUserId String?   @map("actor_user_id")
+  action      String
+  entityType  String    @map("entity_type")
+  entityId    String?   @map("entity_id")
+  metadata    Json?
+  dedupeKey   String?   @unique @map("dedupe_key")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  merchant    Merchant? @relation(fields: [merchantId], references: [id], onDelete: SetNull)
+  actor       User?     @relation("AuditLogActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([merchantId, createdAt])
+  @@index([actorUserId, createdAt])
+  @@map("audit_logs")
 }
 
 model RefreshToken {

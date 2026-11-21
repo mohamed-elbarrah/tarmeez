@@ -1,67 +1,179 @@
 "use client";
 
-import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { useStartSallaConnectionMutation } from "@/services/connectionsApi";
+import { startTransition, useEffect, useState } from "react";
+import { AlertCircle, CheckCircle2, Clock3, ExternalLink, LoaderCircle, RefreshCw, Store, XCircle } from "lucide-react";
+import { useAppDispatch } from "@/store/hooks";
+import { connectionsApi, useCancelSallaIntentMutation, useGetSallaIntentStatusQuery, useStartSallaConnectionMutation } from "@/services/connectionsApi";
 import { getApiErrorMessage } from "@/lib/api-error";
+import { subscribeToSallaConnectionTerminal } from "@/lib/salla-connection-events";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ExternalLink, Store } from "lucide-react";
-import type { StoreConnection } from "@/types/merchant.types";
+import type { SallaIntentStatus } from "@/types/merchant.types";
+
+const MAX_WAITING_MS = 60_000;
+const POLLING_INTERVAL_MS = 2_000;
+const TERMINAL_STATUSES: SallaIntentStatus[] = ["COMPLETED", "FAILED", "EXPIRED", "CANCELLED"];
+const SALLA_WINDOW_NAME = "salla-connection";
 
 interface ConnectSallaDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  connections: StoreConnection[];
 }
 
-export function ConnectSallaDialog({ open, onOpenChange, connections }: ConnectSallaDialogProps) {
-  const [start, { data: intent, isLoading, error, reset }] = useStartSallaConnectionMutation();
-  const [storeUrl, setStoreUrl] = useState("");
-  const [now, setNow] = useState(0);
-  const expectedHost = useMemo(() => extractHost(storeUrl), [storeUrl]);
-  const matchingConnection = intent ? connections.find((connection) => connection.status === "CONNECTED" && connection.storeDomain && normalizeHost(connection.storeDomain) === expectedHost) : undefined;
-  const expired = !!intent && now > 0 && new Date(intent.expiresAt).getTime() <= now;
+interface RequestState {
+  intentId: string;
+  authorizationUrl: string;
+  expiresAt: string;
+}
+
+export function ConnectSallaDialog({ open, onOpenChange }: ConnectSallaDialogProps) {
+  const dispatch = useAppDispatch();
+  const [start, startState] = useStartSallaConnectionMutation();
+  const [cancel, cancelState] = useCancelSallaIntentMutation();
+  const [request, setRequest] = useState<RequestState | null>(null);
+  const [polling, setPolling] = useState(false);
+  const [timedOut, setTimedOut] = useState(false);
+  const [popupBlocked, setPopupBlocked] = useState(false);
+  const [cancelError, setCancelError] = useState<unknown>(null);
+  const intentQuery = useGetSallaIntentStatusQuery(request?.intentId ?? "", {
+    skip: !request,
+    pollingInterval: polling && !timedOut ? POLLING_INTERVAL_MS : 0,
+    refetchOnMountOrArgChange: true,
+  });
+  const { refetch: refetchIntent } = intentQuery;
+  const intentStatus = intentQuery.data?.status;
+  const terminal = !!intentStatus && TERMINAL_STATUSES.includes(intentStatus);
+  const active = !!request && polling && !terminal && !timedOut;
 
   useEffect(() => {
-    if (!intent || matchingConnection) return;
-    const timer = window.setInterval(() => setNow(Date.now()), 1000);
-    return () => window.clearInterval(timer);
-  }, [intent, matchingConnection]);
-  function handleClose(nextOpen: boolean) {
+    if (terminal) startTransition(() => setPolling(false));
+  }, [terminal]);
+
+  useEffect(() => {
+    if (!request || !polling || terminal) return;
+    const timer = window.setTimeout(() => setTimedOut(true), MAX_WAITING_MS);
+    return () => window.clearTimeout(timer);
+  }, [polling, request, terminal]);
+
+  useEffect(() => {
+    if (!request || !terminal || intentStatus !== "COMPLETED") return;
+    dispatch(connectionsApi.util.invalidateTags(["Connection"]));
+  }, [dispatch, intentStatus, request, terminal]);
+
+  useEffect(() => subscribeToSallaConnectionTerminal((event) => {
+    if (event.intentId === request?.intentId) void refetchIntent();
+  }), [refetchIntent, request?.intentId]);
+
+  async function handleConnect() {
+    const popup = openSallaWindow("about:blank");
+    setPopupBlocked(!popup || popup.closed);
+    setCancelError(null);
+    setTimedOut(false);
+    try {
+      const result = await start().unwrap();
+      setRequest(result);
+      setPolling(true);
+      if (popup && !popup.closed) {
+        popup.location.replace(result.authorizationUrl);
+      } else {
+        setPopupBlocked(true);
+      }
+    } catch {
+      if (popup && !popup.closed) popup.close();
+    }
+  }
+
+  async function handleCancel(close = false) {
+    if (!request) return;
+    setCancelError(null);
+    try {
+      await cancel(request.intentId).unwrap();
+      reset();
+      if (close) onOpenChange(false);
+    } catch (error) {
+      setCancelError(error);
+    }
+  }
+
+  function reset() {
+    setRequest(null);
+    setPolling(false);
+    setTimedOut(false);
+    setPopupBlocked(false);
+    setCancelError(null);
+  }
+
+  function handleDialogChange(nextOpen: boolean) {
+    if (!nextOpen && request && active) {
+      void handleCancel(true);
+      return;
+    }
+    if (!nextOpen) reset();
     onOpenChange(nextOpen);
   }
 
-  function finishConnection() {
-    reset();
-    setStoreUrl("");
-    handleClose(false);
+  function openSalla() {
+    if (!request) return;
+    const popup = openSallaWindow(request.authorizationUrl);
+    setPopupBlocked(!popup || popup.closed);
   }
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const normalized = normalizeInput(storeUrl);
-    try { await start({ storeUrl: normalized }).unwrap(); }
-    catch { /* Error is displayed below. */ }
-  }
+  const error = startState.error ?? cancelError;
 
-  const secondsLeft = intent && now > 0 ? Math.max(0, Math.ceil((new Date(intent.expiresAt).getTime() - now) / 1000)) : 0;
-  return <Dialog open={open} onOpenChange={handleClose}><DialogContent className="gap-5 sm:max-w-lg">
-    <DialogHeader><div className="mb-1 grid size-10 place-items-center rounded-xl bg-primary/10 text-primary"><Store className="size-5" /></div><DialogTitle>{matchingConnection ? "Salla is connected" : intent ? "Authorize your store" : "Connect a Salla store"}</DialogTitle><DialogDescription>{matchingConnection ? "Your store is linked to this workspace. You can now start importing its data." : intent ? "Continue to Salla in a new tab, approve access, then return here. We’ll detect the connection automatically." : "Enter your public storefront domain. We’ll send you to Salla to approve secure, read-only access."}</DialogDescription></DialogHeader>
-    {!intent && <form id="connect-salla-form" onSubmit={handleSubmit} className="space-y-3"><label htmlFor="storeUrl" className="text-sm font-medium">Storefront URL</label><Input id="storeUrl" type="url" inputMode="url" required value={storeUrl} onChange={(event) => setStoreUrl(event.target.value)} placeholder="https://your-store.salla.sa" autoComplete="url" className="h-11 rounded-lg" /><p className="text-xs leading-5 text-muted-foreground">Use the public store domain—not an admin or temporary preview link.</p>{error && <p role="alert" className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{getApiErrorMessage(error)}</p>}</form>}
-    {intent && !matchingConnection && <div className="rounded-xl border bg-muted/40 p-4"><div className="flex items-center justify-between gap-3"><div><p className="text-sm font-medium">Waiting for Salla approval</p><p className="mt-1 text-xs text-muted-foreground">{expectedHost}</p></div><span className="whitespace-nowrap text-xs tabular-nums text-muted-foreground">{expired ? "Expired" : now === 0 ? "Checking expiry…" : `${Math.floor(secondsLeft / 60)}:${String(secondsLeft % 60).padStart(2, "0")} left`}</span></div>{!expired && <Button asChild className="mt-4 h-10 w-full rounded-lg"><a href={intent.installationUrl} target="_blank" rel="noopener noreferrer">Continue to Salla <ExternalLink className="ml-2 size-4" /></a></Button>}{expired && <p className="mt-3 text-sm text-destructive">This authorization request expired. Start again to create a fresh request.</p>}<p className="mt-3 text-xs leading-5 text-muted-foreground">This secure request expires after 15 minutes. Keep this page open while you approve access.</p></div>}
-    {matchingConnection && <div className="rounded-xl border border-emerald-500/20 bg-emerald-50/50 p-4 text-sm text-emerald-800">Connected as <strong>{matchingConnection.storeName ?? matchingConnection.storeDomain}</strong>. You can close this window and start the initial import.</div>}
-    <DialogFooter><Button type={intent ? "button" : "submit"} form={intent ? undefined : "connect-salla-form"} disabled={isLoading || (!!intent && !expired && !matchingConnection)} onClick={intent && matchingConnection ? finishConnection : intent && expired ? () => { reset(); setStoreUrl(""); } : undefined} variant={intent && matchingConnection ? "default" : "outline"} className="h-10 rounded-lg">{isLoading ? "Starting…" : intent ? matchingConnection ? "Done" : expired ? "Start over" : "Waiting for authorization…" : "Continue"}</Button><Button type="button" variant="ghost" className="h-10 rounded-lg" onClick={() => handleClose(false)}>{intent && !matchingConnection && !expired ? "Close and keep waiting" : "Cancel"}</Button></DialogFooter>
+  return <Dialog open={open} onOpenChange={handleDialogChange}><DialogContent className="gap-5 sm:max-w-lg">
+    {!request ? <>
+      <DialogHeader><div className="mb-1 grid size-10 place-items-center rounded-xl bg-primary/10 text-primary"><Store className="size-5" /></div><DialogTitle>Connect a Salla store</DialogTitle><DialogDescription>Authorize Tarmeez with Salla to securely import your store data. This tab stays open while Salla confirms access.</DialogDescription></DialogHeader>
+      {startState.error && <ErrorMessage error={startState.error} />}
+      <DialogFooter><Button type="button" disabled={startState.isLoading} onClick={() => void handleConnect()} className="min-h-11 rounded-lg">{startState.isLoading ? <><LoaderCircle className="mr-2 size-4 animate-spin motion-reduce:animate-none" />Starting…</> : "Connect Salla"}</Button><Button type="button" variant="ghost" className="min-h-11 rounded-lg" onClick={() => onOpenChange(false)}>Cancel</Button></DialogFooter>
+    </> : <>
+      <DialogHeader><div className="relative mb-1 grid size-12 place-items-center rounded-2xl bg-primary/10 text-primary"><span className="absolute inset-0 rounded-2xl border border-primary/20 motion-safe:animate-ping motion-reduce:animate-none" /><Store className="relative size-6" /></div><DialogTitle>{titleForStatus(intentStatus, timedOut)}</DialogTitle><DialogDescription>{descriptionForStatus(intentStatus, timedOut)}</DialogDescription></DialogHeader>
+      <div className="grid gap-3 rounded-xl border bg-muted/25 p-4" role="status" aria-live="polite">
+        {[["Open Salla", "Open the authorization page in the new tab."], ["Approve access", "Review the requested store permissions."], ["Confirm connection", "Return here while Tarmeez verifies the result."]].map(([title, description], index) => <div className="flex items-start gap-3" key={title}><span className={`mt-0.5 grid size-7 shrink-0 place-items-center rounded-full text-xs font-semibold ${stepClass(index, intentStatus, timedOut)}`}>{stepIcon(index, intentStatus, timedOut)}</span><div><p className="text-sm font-medium">{title}</p><p className="text-xs leading-5 text-muted-foreground">{description}</p></div></div>)}
+      </div>
+      {popupBlocked && <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm"><p className="font-medium">Salla could not open automatically.</p><a className="mt-2 inline-flex min-h-11 items-center gap-2 font-medium text-primary underline-offset-4 hover:underline" href={request.authorizationUrl} target="_blank" rel="noreferrer">Open Salla in a new tab <ExternalLink className="size-4" /></a></div>}
+      {error && <ErrorMessage error={error} />}
+      <DialogFooter className="sm:justify-between"><div className="flex flex-wrap gap-2"><Button type="button" variant="outline" className="min-h-11 rounded-lg" onClick={openSalla} disabled={terminal || timedOut}><ExternalLink className="mr-2 size-4" />Open Salla again</Button><Button type="button" variant="ghost" className="min-h-11 rounded-lg" onClick={() => void handleCancel()} disabled={cancelState.isLoading || terminal}>{cancelState.isLoading ? "Cancelling…" : "Cancel request"}</Button></div>{terminal && <Button type="button" className="min-h-11 rounded-lg" onClick={() => { reset(); if (intentStatus === "COMPLETED") onOpenChange(false); }}>{intentStatus === "COMPLETED" ? "Close" : "Try again"}</Button>}{timedOut && !terminal && <Button type="button" className="min-h-11 rounded-lg" onClick={() => { setTimedOut(false); setPolling(true); void refetchIntent(); }}><RefreshCw className="mr-2 size-4" />Check again</Button>}</DialogFooter>
+    </>}
   </DialogContent></Dialog>;
 }
 
-function normalizeInput(value: string): string {
-  const trimmed = value.trim();
-  return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+function openSallaWindow(url: string): Window | null {
+  const popup = window.open(url, SALLA_WINDOW_NAME);
+  if (popup) popup.opener = null;
+  return popup;
 }
 
-function extractHost(value: string): string {
-  try { return normalizeHost(new URL(normalizeInput(value)).hostname); } catch { return ""; }
+function titleForStatus(status: SallaIntentStatus | undefined, timedOut: boolean) {
+  if (status === "COMPLETED") return "Salla is connected";
+  if (status === "FAILED") return "Salla could not connect";
+  if (status === "EXPIRED") return "This request expired";
+  if (status === "CANCELLED") return "Connection request cancelled";
+  if (timedOut) return "Still waiting for Salla";
+  return "Finish connecting Salla";
 }
 
-function normalizeHost(value: string): string { return value.toLowerCase().replace(/^www\./, ""); }
+function descriptionForStatus(status: SallaIntentStatus | undefined, timedOut: boolean) {
+  if (status === "COMPLETED") return "Your store is connected. Tarmeez will begin importing its data shortly.";
+  if (status === "FAILED") return "Salla did not approve this request. Start again or try a different store.";
+  if (status === "EXPIRED") return "This authorization link is no longer active. Start a new request.";
+  if (status === "CANCELLED") return "The request was cancelled. You can start a new connection whenever you are ready.";
+  if (timedOut) return "We have not received confirmation yet. Check again or cancel this request to start over.";
+  return "Keep this tab open. We will confirm the connection automatically after you approve access in Salla.";
+}
+
+function stepClass(index: number, status: SallaIntentStatus | undefined, timedOut: boolean) {
+  if (status === "COMPLETED" || (index === 0 && !!status)) return "bg-emerald-500/15 text-emerald-600";
+  if (status === "FAILED" || status === "EXPIRED" || status === "CANCELLED" || timedOut) return "bg-amber-500/15 text-amber-600";
+  return index === 0 ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground";
+}
+
+function stepIcon(index: number, status: SallaIntentStatus | undefined, timedOut: boolean) {
+  if (status === "COMPLETED" || (index === 0 && !!status)) return <CheckCircle2 className="size-4" />;
+  if (status === "FAILED") return index === 2 ? <XCircle className="size-4" /> : index + 1;
+  if (status === "EXPIRED" || status === "CANCELLED" || timedOut) return index === 2 ? <Clock3 className="size-4" /> : index + 1;
+  return index + 1;
+}
+
+function ErrorMessage({ error }: { error: unknown }) {
+  return <p role="alert" className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive"><AlertCircle className="mt-0.5 size-4 shrink-0" />{getApiErrorMessage(error)}</p>;
+}

@@ -310,7 +310,7 @@ NODE_ENV · PORT · FRONTEND_URL
 DATABASE_URL
 JWT_ACCESS_SECRET · JWT_REFRESH_SECRET · JWT_ACCESS_EXPIRES_IN · JWT_REFRESH_EXPIRES_IN
 REDIS_HOST · REDIS_PORT
-SALLA_CLIENT_ID · SALLA_CLIENT_SECRET · SALLA_WEBHOOK_SECRET
+SALLA_ENABLED · SALLA_CLIENT_ID · SALLA_CLIENT_SECRET · SALLA_REDIRECT_URI · SALLA_TOKEN_ENCRYPTION_KEY · SALLA_WEBHOOK_SECRET
 ZID_CLIENT_ID · ZID_CLIENT_SECRET
 META_APP_ID · META_APP_SECRET
 ```
@@ -342,6 +342,12 @@ NEXT_PUBLIC_API_URL
 | Branch names | `type/description` | `feature/salla-oauth` |
 
 ---
+
+### Salla connection ownership and migration recovery
+
+- A Salla connection is owned by the user who completes Custom Mode authorization, while its usable data and access are scoped to exactly one merchant workspace. The initiating user must be that workspace's `OWNER`; workspace members may read workspace-scoped connection data according to the API contract.
+- Connection migrations must be deployed before enabling Salla OAuth. If an existing connection has no owner user, backfill it from the workspace owner; do not guess across workspaces. Keep the backfill idempotent, report orphaned or duplicate connections, and stop production enablement until those rows are reviewed.
+- Recovery after a failed migration is to restore the pre-migration database snapshot, redeploy the migration after correcting the backfill, and re-run the orphan/duplicate verification. Never delete encrypted credentials as a migration shortcut.
 
 ## What to Do When You Are Unsure
 
