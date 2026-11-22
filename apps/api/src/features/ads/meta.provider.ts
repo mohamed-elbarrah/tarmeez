@@ -45,7 +45,7 @@ export class MetaProvider {
   }
 
   async listCampaigns(token: string, accountId: string): Promise<MetaCampaign[]> {
-    const payload = await this.paginate(`/act_${accountId}/campaigns`, token, 'id,name,objective,status,configured_status,effective_status,updated_time');
+    const payload = await this.paginate(`/${adAccountPath(accountId)}/campaigns`, token, 'id,name,objective,status,configured_status,effective_status,updated_time');
     return payload.map((item): MetaCampaign => ({
       id: stringValue(item.id), name: optionalString(item.name), objective: optionalString(item.objective),
       status: optionalString(item.status), configured_status: optionalString(item.configured_status),
@@ -123,3 +123,4 @@ export class MetaProviderError extends Error {
 function isRecord(value: unknown): value is Record<string, unknown> { return typeof value === 'object' && value !== null && !Array.isArray(value); }
 function stringValue(value: unknown): string { return typeof value === 'string' || typeof value === 'number' ? String(value) : ''; }
 function optionalString(value: unknown): string | undefined { return typeof value === 'string' ? value : undefined; }
+function adAccountPath(accountId: string): string { return accountId.startsWith('act_') ? accountId : `act_${accountId}`; }

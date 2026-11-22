@@ -64,6 +64,6 @@ const createApi = buildCreateApi(
 export const baseApi = createApi({
   reducerPath: "api",
   baseQuery: baseQueryWithReauth,
-  tagTypes: ["Auth", "MerchantProfile", "Team", "Invitation", "Connection", "ConnectionIntent", "SyncRun"],
+  tagTypes: ["Auth", "MerchantProfile", "Team", "Invitation", "Connection", "ConnectionIntent", "SyncRun", "AdAccount", "AdCampaign"],
   endpoints: () => ({}),
 });

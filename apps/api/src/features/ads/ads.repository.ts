@@ -81,7 +81,7 @@ export class AdsRepository {
 
   listCampaigns(merchantId: string, accountId: string, page: number, perPage: number, configuredStatus?: string) {
     const where: Prisma.AdCampaignWhereInput = { merchantId, accountConnectionId: accountId, ...(configuredStatus ? { configuredStatus } : {}) };
-    return Promise.all([this.prisma.adCampaign.findMany({ where, skip: (page - 1) * perPage, take: perPage, orderBy: { updatedAt: 'desc' }, include: { dailyMetrics: { orderBy: { reportDate: 'desc' }, take: 1 } } }), this.prisma.adCampaign.count({ where })]);
+    return Promise.all([this.prisma.adCampaign.findMany({ where, skip: (page - 1) * perPage, take: perPage, orderBy: { updatedAt: 'desc' }, include: { accountConnection: { include: { authorization: true } }, dailyMetrics: { orderBy: { reportDate: 'desc' }, take: 1 } } }), this.prisma.adCampaign.count({ where })]);
   }
 
   findCampaignForRead(merchantId: string, id: string) { return this.prisma.adCampaign.findFirst({ where: { id, merchantId }, include: { accountConnection: { include: { authorization: true } }, dailyMetrics: { orderBy: { reportDate: 'desc' }, take: 90 } } }); }

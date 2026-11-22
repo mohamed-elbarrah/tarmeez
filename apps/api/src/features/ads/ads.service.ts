@@ -1,5 +1,6 @@
 import { HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import type { Prisma } from '../../generated/prisma/client.js';
 import { AppException } from '../../common/exceptions/app.exception.js';
 import { AuditService } from '../connections/audit.service.js';
 import { adEncryptionKey, decryptAdToken, encryptAdToken } from './ads.crypto.js';
@@ -96,13 +97,13 @@ export class AdsService {
     const account = await this.repository.findAccountForRead(membership.merchantId, accountId);
     if (!account || account.status === 'DISCONNECTED') throw new AppException('errors.ads.account_not_found', HttpStatus.NOT_FOUND);
     const [data, total] = await this.repository.listCampaigns(membership.merchantId, accountId, page, perPage, status);
-    return { data, meta: { total, page, perPage, totalPages: Math.ceil(total / perPage) } };
+    return { data: data.map(serializeCampaign), meta: { total, page, perPage, totalPages: Math.ceil(total / perPage) } };
   }
 
   async campaign(userId: string, campaignId: string) {
     const membership = await this.readMembership(userId); const campaign = await this.repository.findCampaignForRead(membership.merchantId, campaignId);
     if (!campaign) throw new AppException('errors.ads.campaign_not_found', HttpStatus.NOT_FOUND);
-    return campaign;
+    return serializeCampaign(campaign);
   }
 
   async requestStatus(userId: string, campaignId: string, input: { status: 'ACTIVE' | 'PAUSED'; expectedStatus: string; idempotencyKey: string }) {
@@ -125,4 +126,39 @@ export class AdsService {
 
   private async ownerMembership(userId: string) { const membership = await this.readMembership(userId); if (membership.role !== 'OWNER') throw new AppException('errors.connections.workspace_owner_required', HttpStatus.FORBIDDEN); return membership; }
   private async readMembership(userId: string) { const membership = await this.repository.findMembership(userId); if (!membership || membership.merchant.status !== 'ACTIVE') throw new AppException('errors.merchant.not_found', HttpStatus.NOT_FOUND); return membership; }
+}
+
+type CampaignWithMetrics = Prisma.AdCampaignGetPayload<{ include: { dailyMetrics: true; accountConnection: { include: { authorization: true } } } }>;
+
+function serializeCampaign(campaign: CampaignWithMetrics) {
+  return {
+    id: campaign.id,
+    accountConnectionId: campaign.accountConnectionId,
+    externalCampaignId: campaign.externalCampaignId,
+    name: campaign.name,
+    objective: campaign.objective,
+    configuredStatus: campaign.configuredStatus,
+    effectiveStatus: campaign.effectiveStatus,
+    statusObservedAt: campaign.statusObservedAt,
+    sourceUpdatedAt: campaign.sourceUpdatedAt,
+    updatedAt: campaign.updatedAt,
+    account: {
+      id: campaign.accountConnection.id,
+      name: campaign.accountConnection.name,
+      currency: campaign.accountConnection.currency,
+      reportingTimeZone: campaign.accountConnection.reportingTimeZone,
+      ownerUserId: campaign.accountConnection.ownerUserId,
+    },
+    dailyMetrics: campaign.dailyMetrics.map((metric) => ({
+      id: metric.id,
+      reportDate: metric.reportDate,
+      currency: metric.currency,
+      spend: metric.spend?.toString() ?? null,
+      impressions: metric.impressions === null ? null : metric.impressions?.toString() ?? null,
+      clicks: metric.clicks === null ? null : metric.clicks?.toString() ?? null,
+      reportedPurchases: metric.reportedPurchases === null ? null : metric.reportedPurchases?.toString() ?? null,
+      reportedPurchaseValue: metric.reportedPurchaseValue?.toString() ?? null,
+      retrievedAt: metric.retrievedAt,
+    })),
+  };
 }
