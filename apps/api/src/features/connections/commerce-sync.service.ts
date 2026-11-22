@@ -17,7 +17,11 @@ import {
 } from 'node:crypto';
 import type { SyncResource } from '../../generated/prisma/client.js';
 import { ConnectionsSyncRepository } from './connections-sync.repository.js';
-import { SallaPaginationError, SallaProvider, SallaTokenError } from './salla.provider.js';
+import {
+  SallaPaginationError,
+  SallaProvider,
+  SallaTokenError,
+} from './salla.provider.js';
 import { AppException } from '../../common/exceptions/app.exception.js';
 
 export const COMMERCE_SYNC_QUEUE = 'commerce-sync';
@@ -54,7 +58,10 @@ export class CommerceSyncService {
     resource: SyncResource = 'ALL',
   ) {
     if (!this.sallaEnabled())
-      throw new AppException('errors.connections.salla_not_configured', HttpStatus.SERVICE_UNAVAILABLE);
+      throw new AppException(
+        'errors.connections.salla_not_configured',
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
     const membership = await this.repository.findMembership(userId);
     if (!membership || membership.merchant.status !== 'ACTIVE')
       throw new NotFoundException('Merchant workspace not found');
@@ -84,8 +91,10 @@ export class CommerceSyncService {
     } catch (error) {
       if (typeof this.queue.getJob !== 'function') {
         await this.repository.updateRun(run.id, {
-          status: 'FAILED', errorKey: 'errors.sync.queue_failed',
-          errorMessage: 'Sync could not be queued', finishedAt: new Date(),
+          status: 'FAILED',
+          errorKey: 'errors.sync.queue_failed',
+          errorMessage: 'Sync could not be queued',
+          finishedAt: new Date(),
         });
         throw error;
       }
@@ -93,8 +102,10 @@ export class CommerceSyncService {
         const job = await this.queue.getJob(run.id);
         if (!job) {
           await this.repository.updateRun(run.id, {
-            status: 'FAILED', errorKey: 'errors.sync.queue_failed',
-            errorMessage: 'Sync could not be queued', finishedAt: new Date(),
+            status: 'FAILED',
+            errorKey: 'errors.sync.queue_failed',
+            errorMessage: 'Sync could not be queued',
+            finishedAt: new Date(),
           });
         }
       } catch {
@@ -102,7 +113,8 @@ export class CommerceSyncService {
           await this.repository.updateRun(run.id, {
             status: 'FAILED',
             errorKey: 'errors.sync.queue_reconciliation_failed',
-            errorMessage: 'Sync queue status could not be verified; retry is safe',
+            errorMessage:
+              'Sync queue status could not be verified; retry is safe',
             finishedAt: new Date(),
           });
         } catch {
@@ -143,17 +155,47 @@ export class CommerceSyncService {
     if (!created) {
       if (run.status === 'QUEUED') {
         if (await this.queue.getJob(jobId))
-          return { queued: false, processed: false, reason: 'already_queued' as const, syncRunId: run.id };
+          return {
+            queued: false,
+            processed: false,
+            reason: 'already_queued' as const,
+            syncRunId: run.id,
+          };
       } else if (run.status === 'RUNNING') {
-        return { queued: false, processed: false, reason: 'already_processing' as const, syncRunId: run.id };
+        return {
+          queued: false,
+          processed: false,
+          reason: 'already_processing' as const,
+          syncRunId: run.id,
+        };
       } else if (run.status === 'FAILED') {
-        if (await this.queue.getJob(jobId))
-          return { queued: false, processed: false, reason: 'already_queued' as const, syncRunId: run.id };
+        const existingJob = await this.queue.getJob(jobId);
+        if (existingJob) {
+          const state = await existingJob.getState();
+          if (state !== 'failed')
+            return {
+              queued: false,
+              processed: false,
+              reason: 'already_queued' as const,
+              syncRunId: run.id,
+            };
+          await existingJob.remove();
+        }
         requeuedFailed = await this.repository.requeueFailedRun(run.id);
         if (!requeuedFailed)
-          return { queued: false, processed: false, reason: 'already_terminal' as const, syncRunId: run.id };
+          return {
+            queued: false,
+            processed: false,
+            reason: 'already_terminal' as const,
+            syncRunId: run.id,
+          };
       } else {
-        return { queued: false, processed: false, reason: 'already_terminal' as const, syncRunId: run.id };
+        return {
+          queued: false,
+          processed: false,
+          reason: 'already_terminal' as const,
+          syncRunId: run.id,
+        };
       }
     }
     try {
@@ -187,7 +229,8 @@ export class CommerceSyncService {
           await this.repository.updateRun(run.id, {
             status: 'FAILED',
             errorKey: 'errors.sync.queue_reconciliation_failed',
-            errorMessage: 'Sync queue status could not be verified; retry is safe',
+            errorMessage:
+              'Sync queue status could not be verified; retry is safe',
             finishedAt: new Date(),
           });
         } catch {
@@ -215,7 +258,13 @@ export class CommerceSyncService {
           removeOnFail: 500,
         },
       );
-      return { queued: true, syncRunId: run.id, resource: run.resource, status: run.status, createdAt: run.createdAt };
+      return {
+        queued: true,
+        syncRunId: run.id,
+        resource: run.resource,
+        status: run.status,
+        createdAt: run.createdAt,
+      };
     } catch (error) {
       if (typeof this.queue.getJob !== 'function') {
         await this.markQueueReconciliationFailed(run.id);
@@ -240,7 +289,9 @@ export class CommerceSyncService {
         await this.markQueueReconciliationFailed(run.id);
         throw error;
       }
-      this.logger.error(`Salla initial sync queueing failed for connection ${connectionId}`);
+      this.logger.error(
+        `Salla initial sync queueing failed for connection ${connectionId}`,
+      );
       return {
         queued: false,
         syncRunId: run.id,
@@ -303,14 +354,31 @@ export class CommerceSyncService {
     const run = await this.repository.findRun(syncRunId);
     if (!run) throw new NotFoundException('Sync run not found');
     if (!this.sallaEnabled()) {
-      const error = new AppException('errors.connections.salla_not_configured', HttpStatus.SERVICE_UNAVAILABLE);
-      await this.updateRunFailure(run.id, 0, 0, attempt, 'errors.connections.salla_not_configured', 'Salla integration is disabled');
+      const error = new AppException(
+        'errors.connections.salla_not_configured',
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
+      await this.updateRunFailure(
+        run.id,
+        0,
+        0,
+        attempt,
+        'errors.connections.salla_not_configured',
+        'Salla integration is disabled',
+      );
       throw error;
     }
     const context = await this.repository.findSyncContext(run.connectionId);
     if (!context || context.status !== 'CONNECTED') {
       const error = new ConflictException('Connection is not active');
-      await this.updateRunFailure(run.id, 0, 0, attempt, 'errors.sync.connection_inactive', 'Connection is not active');
+      await this.updateRunFailure(
+        run.id,
+        0,
+        0,
+        attempt,
+        'errors.sync.connection_inactive',
+        'Connection is not active',
+      );
       throw error;
     }
     let fetched = 0;
@@ -324,14 +392,19 @@ export class CommerceSyncService {
         errorKey: null,
         errorMessage: null,
       });
-      const resources = run.resource === 'ALL' ? RESOURCE_ORDER : [run.resource];
+      const resources =
+        run.resource === 'ALL' ? RESOURCE_ORDER : [run.resource];
       for (const resource of resources) {
         let pageNumber = 1;
         let hasMore = true;
+        const seenExternalIds = new Set<string>();
         const seenResponses = new Set<string>();
         while (hasMore) {
           if (pageNumber > MAX_SYNC_PAGES)
-            throw new AppException('errors.sync.pagination_invalid', HttpStatus.BAD_GATEWAY);
+            throw new AppException(
+              'errors.sync.pagination_invalid',
+              HttpStatus.BAD_GATEWAY,
+            );
           let result: Awaited<ReturnType<SallaProvider['fetchPage']>>;
           try {
             result = await this.salla.fetchPage(resource, token, pageNumber);
@@ -345,13 +418,23 @@ export class CommerceSyncService {
           }
           if (result.hasMore) {
             if (result.records.length === 0)
-              throw new AppException('errors.sync.pagination_invalid', HttpStatus.BAD_GATEWAY);
+              throw new AppException(
+                'errors.sync.pagination_invalid',
+                HttpStatus.BAD_GATEWAY,
+              );
             const responseFingerprint = JSON.stringify(result.records);
             if (seenResponses.has(responseFingerprint))
-              throw new AppException('errors.sync.pagination_invalid', HttpStatus.BAD_GATEWAY);
+              throw new AppException(
+                'errors.sync.pagination_invalid',
+                HttpStatus.BAD_GATEWAY,
+              );
             seenResponses.add(responseFingerprint);
           }
           fetched += result.records.length;
+          for (const record of result.records) {
+            const externalId = readExternalId(record.id);
+            if (externalId) seenExternalIds.add(externalId);
+          }
           upserted += await this.repository.upsertPage(
             context.id,
             context.merchantId,
@@ -366,6 +449,9 @@ export class CommerceSyncService {
           });
           pageNumber += 1;
         }
+        await this.repository.deleteMissing(context.id, resource, [
+          ...seenExternalIds,
+        ]);
       }
       await this.repository.updateRun(run.id, {
         status: 'SUCCEEDED',
@@ -375,42 +461,65 @@ export class CommerceSyncService {
         finishedAt: new Date(),
       });
     } catch (error) {
-      const reauth = error instanceof AppException && error.key === 'errors.connections.reauth_required';
-      const paginationInvalid = error instanceof AppException && error.key === 'errors.sync.pagination_invalid'
-        || error instanceof SallaPaginationError;
+      const reauth =
+        error instanceof AppException &&
+        error.key === 'errors.connections.reauth_required';
+      const paginationInvalid =
+        (error instanceof AppException &&
+          error.key === 'errors.sync.pagination_invalid') ||
+        error instanceof SallaPaginationError;
       await this.updateRunFailure(
         run.id,
         fetched,
         upserted,
         attempt,
-        reauth ? 'errors.sync.reauth_required' : paginationInvalid ? 'errors.sync.pagination_invalid' : undefined,
-        reauth ? 'Reconnect the Salla store' : paginationInvalid ? 'Salla pagination was invalid or made no progress' : undefined,
+        reauth
+          ? 'errors.sync.reauth_required'
+          : paginationInvalid
+            ? 'errors.sync.pagination_invalid'
+            : undefined,
+        reauth
+          ? 'Reconnect the Salla store'
+          : paginationInvalid
+            ? 'Salla pagination was invalid or made no progress'
+            : undefined,
       );
       throw error;
     }
   }
 
-  private async getValidAccessToken(context: {
-    id: string;
-    accessTokenEncrypted: string;
-    refreshTokenEncrypted: string | null;
-    tokenExpiresAt: Date | null;
-  }, forceRefresh = false): Promise<string> {
+  private async getValidAccessToken(
+    context: {
+      id: string;
+      accessTokenEncrypted: string;
+      refreshTokenEncrypted: string | null;
+      tokenExpiresAt: Date | null;
+    },
+    forceRefresh = false,
+  ): Promise<string> {
     const refreshMarginMs = 2 * 60 * 1000;
-    if (!forceRefresh && (
-      (context.tokenExpiresAt && context.tokenExpiresAt.getTime() > Date.now() + refreshMarginMs) ||
-      (!context.tokenExpiresAt && !context.refreshTokenEncrypted)
-    )) {
+    if (
+      !forceRefresh &&
+      ((context.tokenExpiresAt &&
+        context.tokenExpiresAt.getTime() > Date.now() + refreshMarginMs) ||
+        (!context.tokenExpiresAt && !context.refreshTokenEncrypted))
+    ) {
       return this.decrypt(context.accessTokenEncrypted);
     }
     if (!context.refreshTokenEncrypted) {
       await this.repository.markConnectionReauthRequired(context.id);
-      throw new AppException('errors.connections.reauth_required', HttpStatus.CONFLICT);
+      throw new AppException(
+        'errors.connections.reauth_required',
+        HttpStatus.CONFLICT,
+      );
     }
     const clientId = this.config.get<string>('SALLA_CLIENT_ID');
     const clientSecret = this.config.get<string>('SALLA_CLIENT_SECRET');
     if (!clientId || !clientSecret) {
-      throw new AppException('errors.connections.salla_not_configured', HttpStatus.SERVICE_UNAVAILABLE);
+      throw new AppException(
+        'errors.connections.salla_not_configured',
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
     }
 
     const lockToken = randomUUID();
@@ -418,8 +527,14 @@ export class CommerceSyncService {
       const latest = await this.repository.findSyncContext(context.id);
       if (!latest || latest.status !== 'CONNECTED')
         throw new ConflictException('Salla connection is not active');
-      const latestTokenValid = latest.tokenExpiresAt && latest.tokenExpiresAt.getTime() > Date.now() + refreshMarginMs;
-      if (latestTokenValid && (!forceRefresh || latest.accessTokenEncrypted !== context.accessTokenEncrypted)) {
+      const latestTokenValid =
+        latest.tokenExpiresAt &&
+        latest.tokenExpiresAt.getTime() > Date.now() + refreshMarginMs;
+      if (
+        latestTokenValid &&
+        (!forceRefresh ||
+          latest.accessTokenEncrypted !== context.accessTokenEncrypted)
+      ) {
         return this.decrypt(latest.accessTokenEncrypted);
       }
       const now = new Date();
@@ -434,8 +549,11 @@ export class CommerceSyncService {
           const refreshToken = latest.refreshTokenEncrypted
             ? this.decrypt(latest.refreshTokenEncrypted)
             : undefined;
-           if (!refreshToken)
-             throw new AppException('errors.connections.reauth_required', HttpStatus.CONFLICT);
+          if (!refreshToken)
+            throw new AppException(
+              'errors.connections.reauth_required',
+              HttpStatus.CONFLICT,
+            );
           const tokens = await this.salla.refreshToken(
             refreshToken,
             clientId,
@@ -443,7 +561,10 @@ export class CommerceSyncService {
           );
           const expiry = refreshTokenExpiry(tokens.expires_in, tokens.expires);
           if (!expiry)
-              throw new AppException('errors.connections.reauth_required', HttpStatus.CONFLICT);
+            throw new AppException(
+              'errors.connections.reauth_required',
+              HttpStatus.CONFLICT,
+            );
           const saved = await this.repository.saveRefreshedTokens(
             context.id,
             lockToken,
@@ -454,23 +575,41 @@ export class CommerceSyncService {
             },
           );
           if (saved.count !== 1)
-             throw new AppException('errors.connections.reauth_required', HttpStatus.CONFLICT);
-           return tokens.access_token;
-          } catch (error) {
-            if (error instanceof AppException && error.key === 'errors.connections.reauth_required')
-              throw error;
-            if (error instanceof SallaTokenError && error.kind === 'INVALID_GRANT') {
-              await this.repository.markConnectionReauthRequired(context.id);
-              throw new AppException('errors.connections.reauth_required', HttpStatus.CONFLICT);
-            }
-            throw new AppException('errors.connections.salla_refresh_unavailable', HttpStatus.SERVICE_UNAVAILABLE);
-         } finally {
+            throw new AppException(
+              'errors.connections.reauth_required',
+              HttpStatus.CONFLICT,
+            );
+          return tokens.access_token;
+        } catch (error) {
+          if (
+            error instanceof AppException &&
+            error.key === 'errors.connections.reauth_required'
+          )
+            throw error;
+          if (
+            error instanceof SallaTokenError &&
+            error.kind === 'INVALID_GRANT'
+          ) {
+            await this.repository.markConnectionReauthRequired(context.id);
+            throw new AppException(
+              'errors.connections.reauth_required',
+              HttpStatus.CONFLICT,
+            );
+          }
+          throw new AppException(
+            'errors.connections.salla_refresh_unavailable',
+            HttpStatus.SERVICE_UNAVAILABLE,
+          );
+        } finally {
           await this.repository.releaseRefreshLock(context.id, lockToken);
         }
       }
       await new Promise((resolve) => setTimeout(resolve, 500));
     }
-    throw new AppException('errors.connections.salla_refresh_unavailable', HttpStatus.SERVICE_UNAVAILABLE);
+    throw new AppException(
+      'errors.connections.salla_refresh_unavailable',
+      HttpStatus.SERVICE_UNAVAILABLE,
+    );
   }
 
   private updateRunFailure(
@@ -481,13 +620,19 @@ export class CommerceSyncService {
     terminalErrorKey?: string,
     terminalMessage?: string,
   ) {
-    const terminal = Boolean(terminalErrorKey) || attempt.attemptsMade + 1 >= Math.max(attempt.maxAttempts, 1);
+    const terminal =
+      Boolean(terminalErrorKey) ||
+      attempt.attemptsMade + 1 >= Math.max(attempt.maxAttempts, 1);
     return this.repository.updateRun(runId, {
       status: terminal ? 'FAILED' : 'QUEUED',
       fetchedCount: fetched,
       upsertedCount: upserted,
-      errorKey: terminal ? terminalErrorKey ?? 'errors.sync.failed' : 'errors.sync.retrying',
-      errorMessage: terminal ? terminalMessage ?? 'Salla sync failed' : 'Salla sync will retry',
+      errorKey: terminal
+        ? (terminalErrorKey ?? 'errors.sync.failed')
+        : 'errors.sync.retrying',
+      errorMessage: terminal
+        ? (terminalMessage ?? 'Salla sync failed')
+        : 'Salla sync will retry',
       finishedAt: terminal ? new Date() : null,
     });
   }
@@ -546,14 +691,18 @@ export class CommerceSyncService {
   }
 }
 
-function refreshTokenExpiry(expiresIn: number | undefined, expires: number | undefined): Date | null {
-  if (expiresIn !== undefined)
-    return durationExpiry(expiresIn);
+function refreshTokenExpiry(
+  expiresIn: number | undefined,
+  expires: number | undefined,
+): Date | null {
+  if (expiresIn !== undefined) return durationExpiry(expiresIn);
   return expires !== undefined ? unixSecondsExpiry(expires) : null;
 }
 
 function durationExpiry(value: number): Date | null {
-  return Number.isFinite(value) && value >= 0 ? new Date(Date.now() + value * 1000) : null;
+  return Number.isFinite(value) && value >= 0
+    ? new Date(Date.now() + value * 1000)
+    : null;
 }
 
 function unixSecondsExpiry(value: number): Date | null {
@@ -561,5 +710,17 @@ function unixSecondsExpiry(value: number): Date | null {
 }
 
 function isUnauthorized(error: unknown): boolean {
-  return typeof error === 'object' && error !== null && 'status' in error && error.status === 401;
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'status' in error &&
+    error.status === 401
+  );
+}
+
+function readExternalId(value: unknown): string | undefined {
+  return typeof value === 'string' ||
+    (typeof value === 'number' && Number.isFinite(value))
+    ? String(value)
+    : undefined;
 }

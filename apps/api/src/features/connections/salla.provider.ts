@@ -4,7 +4,14 @@ const SALLA_USER_INFO_URL = 'https://accounts.salla.sa/oauth2/user/info';
 const SALLA_AUTHORIZATION_URL = 'https://accounts.salla.sa/oauth2/auth';
 const SALLA_TOKEN_URL = 'https://accounts.salla.sa/oauth2/token';
 const SALLA_API_BASE = 'https://api.salla.dev/admin/v2';
-const PAGE_SIZE = 50;
+const PAGE_SIZE = 30;
+
+export const SALLA_OAUTH_SCOPES = [
+  'offline_access',
+  'orders.read',
+  'products.read',
+  'customers.read',
+];
 
 export type SyncResource = 'PRODUCTS' | 'CUSTOMERS' | 'ORDERS';
 
@@ -23,7 +30,10 @@ export interface SallaRefreshedTokens {
 export interface SallaAuthorizationTokens extends SallaRefreshedTokens {}
 
 export class SallaTokenError extends Error {
-  constructor(readonly kind: 'INVALID_GRANT' | 'TRANSIENT', message: string) {
+  constructor(
+    readonly kind: 'INVALID_GRANT' | 'TRANSIENT',
+    message: string,
+  ) {
     super(message);
     this.name = 'SallaTokenError';
   }
@@ -48,7 +58,10 @@ export class SallaProvider {
     url.searchParams.set('client_id', input.clientId);
     url.searchParams.set('redirect_uri', input.redirectUri);
     url.searchParams.set('response_type', 'code');
-    url.searchParams.set('scope', (input.scope ?? ['offline_access']).join(' '));
+    url.searchParams.set(
+      'scope',
+      (input.scope ?? SALLA_OAUTH_SCOPES).join(' '),
+    );
     url.searchParams.set('state', input.state);
     return url;
   }
@@ -236,13 +249,20 @@ async function fetchTokenResponse(
 function tokenFailure(payload: unknown, message: string): SallaTokenError {
   if (isRecord(payload)) {
     const code = payload.error ?? payload.code;
-    if (typeof code === 'string' && ['invalid_grant', 'unauthorized', 'invalid_token'].includes(code.toLowerCase()))
+    if (
+      typeof code === 'string' &&
+      ['invalid_grant', 'unauthorized', 'invalid_token'].includes(
+        code.toLowerCase(),
+      )
+    )
       return new SallaTokenError('INVALID_GRANT', message);
   }
   return new SallaTokenError('TRANSIENT', message);
 }
 
-function parseTokenResponse(payload: unknown): SallaRefreshedTokens | undefined {
+function parseTokenResponse(
+  payload: unknown,
+): SallaRefreshedTokens | undefined {
   if (!isRecord(payload)) return undefined;
   if (
     typeof payload.access_token !== 'string' ||
@@ -264,7 +284,9 @@ function parseTokenResponse(payload: unknown): SallaRefreshedTokens | undefined 
     ...(typeof payload.expires_in === 'number'
       ? { expires_in: payload.expires_in }
       : {}),
-    ...(typeof payload.expires === 'number' ? { expires: payload.expires } : {}),
+    ...(typeof payload.expires === 'number'
+      ? { expires: payload.expires }
+      : {}),
   };
 }
 
