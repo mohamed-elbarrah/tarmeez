@@ -26,6 +26,8 @@ docs/
 ├── PRODUCT_SCOPE.md       ← Feature boundaries, phased direction, open questions
 ├── PRODUCT_ROADMAP.md     ← Delivery phases, timelines, risks
 ├── EXECUTION_PLAN.md      ← Current implementation sequence and checkpoints
+├── API_AUTH.md            ← Current authentication API integration contract
+├── API_MERCHANTS.md       ← Current workspace, team, and invitation API contract
 ├── FRONTEND_CONTRACT.md   ← Mandatory frontend patterns and rules
 └── BACKEND_CONTRACT.md    ← Mandatory backend patterns and rules
 ```
@@ -47,6 +49,8 @@ docs/
 | `PRODUCT_SCOPE.md` | You are asked about what is in or out of scope, which features belong to which phase, or what decisions are still open |
 | `PRODUCT_ROADMAP.md` | You are asked about delivery order, phase timelines, workstreams, or risks |
 | `EXECUTION_PLAN.md` | You are implementing the currently selected delivery sequence |
+| `API_AUTH.md` | You are integrating or changing the implemented authentication API |
+| `API_MERCHANTS.md` | You are integrating or changing workspace, team, or invitation APIs |
 
 ### Read when writing or reviewing code
 | Document | Read when |
@@ -306,7 +310,7 @@ NODE_ENV · PORT · FRONTEND_URL
 DATABASE_URL
 JWT_ACCESS_SECRET · JWT_REFRESH_SECRET · JWT_ACCESS_EXPIRES_IN · JWT_REFRESH_EXPIRES_IN
 REDIS_HOST · REDIS_PORT
-SALLA_CLIENT_ID · SALLA_CLIENT_SECRET · SALLA_WEBHOOK_SECRET
+SALLA_ENABLED · SALLA_CLIENT_ID · SALLA_CLIENT_SECRET · SALLA_REDIRECT_URI · SALLA_TOKEN_ENCRYPTION_KEY · SALLA_WEBHOOK_SECRET
 ZID_CLIENT_ID · ZID_CLIENT_SECRET
 META_APP_ID · META_APP_SECRET
 ```
@@ -338,6 +342,12 @@ NEXT_PUBLIC_API_URL
 | Branch names | `type/description` | `feature/salla-oauth` |
 
 ---
+
+### Salla connection ownership and migration recovery
+
+- A Salla connection is owned by the user who completes Custom Mode authorization, while its usable data and access are scoped to exactly one merchant workspace. The initiating user must be that workspace's `OWNER`; workspace members may read workspace-scoped connection data according to the API contract.
+- Connection migrations must be deployed before enabling Salla OAuth. If an existing connection has no owner user, backfill it from the workspace owner; do not guess across workspaces. Keep the backfill idempotent, report orphaned or duplicate connections, and stop production enablement until those rows are reviewed.
+- Recovery after a failed migration is to restore the pre-migration database snapshot, redeploy the migration after correcting the backfill, and re-run the orphan/duplicate verification. Never delete encrypted credentials as a migration shortcut.
 
 ## What to Do When You Are Unsure
 

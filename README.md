@@ -88,11 +88,22 @@ cd tarmeez
 pnpm install
 ```
 
-### 3. Start infrastructure services
+### 3. Configure and start infrastructure services
 ```bash
-# Starts PostgreSQL + Redis only — code runs locally
+# Compose reads this root-level file for local service credentials and ports
+cp .env.example .env
+
+# Starts PostgreSQL + Redis only — app code runs locally
 docker compose -f docker-compose.dev.yml up -d
+
+# Check service health
+docker compose -f docker-compose.dev.yml ps
+
+# Stop services (keeps database/cache volumes)
+docker compose -f docker-compose.dev.yml down
 ```
+
+The root `.env` supplies Compose with the PostgreSQL credentials and host ports; it is ignored by Git. These credentials and the unauthenticated Redis instance are for local development only. Both services bind to localhost and persist data in named Docker volumes. If you change the host ports in `.env`, update `DATABASE_URL` and `REDIS_PORT` in `apps/api/.env` to match. To **delete** the persisted data as well as stop the services, run `docker compose -f docker-compose.dev.yml down --volumes`.
 
 ### 4. Set up environment variables
 ```bash
@@ -133,9 +144,9 @@ FRONTEND_URL=http://localhost:3000
 # Database
 DATABASE_URL=postgresql://tarmeez:secret@localhost:5432/tarmeez
 
-# JWT
-JWT_ACCESS_SECRET=
-JWT_REFRESH_SECRET=
+# JWT (replace with independent random secrets, at least 32 characters each)
+JWT_ACCESS_SECRET=replace-with-a-random-access-secret
+JWT_REFRESH_SECRET=replace-with-a-random-refresh-secret
 JWT_ACCESS_EXPIRES_IN=15m
 JWT_REFRESH_EXPIRES_IN=7d
 
@@ -176,6 +187,8 @@ All product and technical documents live in `/docs` (the project README is at th
 | [`PRODUCT_SCOPE.md`](./docs/PRODUCT_SCOPE.md) | Capability boundaries, phased direction, open decisions |
 | [`PRODUCT_ROADMAP.md`](./docs/PRODUCT_ROADMAP.md) | Delivery phases, workstreams, risks, next steps |
 | [`EXECUTION_PLAN.md`](./docs/EXECUTION_PLAN.md) | Current implementation sequence and checkpoints |
+| [`API_AUTH.md`](./docs/API_AUTH.md) | Authentication API flows, endpoints, cookies, and errors |
+| [`API_MERCHANTS.md`](./docs/API_MERCHANTS.md) | Merchant workspace, team roles, and invitation flows |
 | [`FRONTEND_CONTRACT.md`](./docs/FRONTEND_CONTRACT.md) | **Mandatory** frontend structure, patterns, and rules |
 | [`BACKEND_CONTRACT.md`](./docs/BACKEND_CONTRACT.md) | **Mandatory** backend structure, patterns, and rules |
 

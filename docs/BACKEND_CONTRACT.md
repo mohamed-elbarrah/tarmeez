@@ -650,8 +650,11 @@ REDIS_HOST=
 REDIS_PORT=
 
 # Salla
+SALLA_ENABLED=false
 SALLA_CLIENT_ID=
 SALLA_CLIENT_SECRET=
+SALLA_REDIRECT_URI=http://localhost:4000/connections/salla/callback
+SALLA_TOKEN_ENCRYPTION_KEY=
 SALLA_WEBHOOK_SECRET=
 
 # Zid
@@ -662,6 +665,12 @@ ZID_CLIENT_SECRET=
 META_APP_ID=
 META_APP_SECRET=
 ```
+
+### Salla Custom Mode ownership and migration recovery
+
+Salla Custom Mode creates a connection owned by the user who completes the OAuth callback and attached to exactly one merchant workspace. Only the workspace owner may start or disconnect it; workspace members receive access only through workspace-scoped repository queries. The connection must never be reassigned based on an incoming store URL or an untrusted callback parameter.
+
+Deploy connection schema migrations before setting `SALLA_ENABLED=true`. For existing rows, backfill a missing owner user from the owning workspace's `OWNER` membership using an idempotent, reviewed migration. Report and manually resolve orphaned or duplicate connections before production enablement. If deployment fails, restore the pre-migration snapshot, correct the backfill, redeploy, and rerun orphan/duplicate checks; do not discard encrypted tokens to force completion.
 
 ---
 

@@ -31,8 +31,7 @@ permissions as required by the product. - Separation of each merchant's
 data and connected credentials. - Visibility into connection and
 synchronization status.
 
-The detailed account model, roles, invitations and subscription
-entitlements remain to be specified.
+**Approved MVP account model (product-owner decision, November 2026):** a `User` is a global login identity and a `Merchant` is a business workspace. Each merchant user belongs to at most one workspace. A normal signup creates a workspace with exactly one `OWNER`; invitation signup joins the invited workspace as a `VIEWER` without creating a separate workspace. Owners manage invitations and workspace settings; viewers can view the workspace and team but cannot manage them. Admins are global and do not need a workspace membership. Invitations expire after seven days. An already-assigned user cannot join another workspace in the MVP; invitations can be accepted by new users or existing users with no current membership. Multi-workspace access for agencies is deferred, and ownership transfer is not part of the current API.
 
 ### 2.2 Commerce platform integrations
 
