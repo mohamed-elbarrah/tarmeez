@@ -6,6 +6,7 @@ import { ThrottlerStorageModule } from './common/throttling/throttler-storage.mo
 import { AppConfigModule } from './config/config.module.js';
 import { AdminModule } from './features/admin/admin.module.js';
 import { AnalyticsModule } from './features/analytics/analytics.module.js';
+import { AdsModule } from './features/ads/ads.module.js';
 import { AuthModule } from './features/auth/auth.module.js';
 import { ConnectionsModule } from './features/connections/connections.module.js';
 import { HealthModule } from './features/health/health.module.js';
@@ -31,6 +32,7 @@ import { PrismaModule } from './prisma/prisma.module.js';
     MerchantsModule,
     ConnectionsModule,
     AnalyticsModule,
+    AdsModule,
     AdminModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],

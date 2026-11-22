@@ -61,6 +61,9 @@ const environmentSchema = Joi.object({
   ZID_CLIENT_SECRET: Joi.string().allow('').optional(),
   META_APP_ID: Joi.string().allow('').optional(),
   META_APP_SECRET: Joi.string().allow('').optional(),
+  META_ENABLED: Joi.boolean().truthy('true').falsy('false').default(false),
+  META_REDIRECT_URI: Joi.string().uri().allow('').optional(),
+  META_TOKEN_ENCRYPTION_KEY: Joi.string().allow('').optional(),
 }).unknown(true);
 
 export function validateEnvironment(
@@ -101,6 +104,16 @@ export function validateEnvironment(
         'SALLA_TOKEN_ENCRYPTION_KEY must be a base64-encoded 32-byte key.',
       );
     }
+  }
+
+  if (value.META_ENABLED) {
+    const missingMetaSettings = ['META_APP_ID', 'META_APP_SECRET', 'META_REDIRECT_URI', 'META_TOKEN_ENCRYPTION_KEY'].filter((key) => {
+      const setting = value[key];
+      return typeof setting !== 'string' || setting.trim().length === 0;
+    });
+    if (missingMetaSettings.length > 0) throw new Error('META_APP_ID, META_APP_SECRET, META_REDIRECT_URI, and META_TOKEN_ENCRYPTION_KEY are required when META_ENABLED=true.');
+    const encryptionKey = String(value.META_TOKEN_ENCRYPTION_KEY);
+    if (!/^[A-Za-z0-9+/]+={0,2}$/.test(encryptionKey) || encryptionKey.length % 4 !== 0 || Buffer.from(encryptionKey, 'base64').length !== 32) throw new Error('META_TOKEN_ENCRYPTION_KEY must be a base64-encoded 32-byte key.');
   }
 
   if (value.NODE_ENV === 'production') {
@@ -144,6 +157,10 @@ export function validateEnvironment(
           'SALLA_REDIRECT_URI must use HTTPS when Salla is enabled in production.',
         );
       }
+    }
+    if (value.META_ENABLED) {
+      const redirectUri = new URL(String(value.META_REDIRECT_URI));
+      if (redirectUri.protocol !== 'https:') throw new Error('META_REDIRECT_URI must use HTTPS when Meta is enabled in production.');
     }
   }
 

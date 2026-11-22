@@ -32,6 +32,48 @@ enum EmailOtpPurpose {
   PASSWORD_RESET
 }
 
+enum AdProvider {
+  META
+}
+
+enum AdConnectionStatus {
+  CONNECTED
+  REAUTH_REQUIRED
+  DISCONNECTED
+}
+
+enum AdIntentStatus {
+  INITIATED
+  AUTHORIZED
+  COMPLETED
+  FAILED
+  EXPIRED
+  CANCELLED
+}
+
+enum AdSyncStatus {
+  QUEUED
+  RUNNING
+  SUCCEEDED
+  PARTIAL
+  FAILED
+}
+
+enum AdSyncTrigger {
+  INITIAL
+  MANUAL
+  SCHEDULED
+  RECONCILIATION
+}
+
+enum AdStatusActionState {
+  QUEUED
+  PROCESSING
+  CONFIRMED
+  REJECTED
+  NOT_CONFIRMED
+}
+
 model User {
   id              String              @id @default(uuid())
   email           String              @unique
@@ -50,6 +92,10 @@ model User {
   ownedConnections StoreConnection[]
   initiatedSallaConnectionIntents SallaConnectionIntent[]
   auditLogs       AuditLog[]        @relation("AuditLogActor")
+  adConnectionIntents AdConnectionIntent[]
+  adAuthorizations AdAuthorization[]
+  ownedAdAccounts AdAccountConnection[]
+  adStatusActions AdCampaignStatusAction[]
 
   @@map("users")
 }
@@ -70,6 +116,12 @@ model Merchant {
   commerceCustomers      CommerceCustomer[]
   commerceOrders         CommerceOrder[]
   auditLogs              AuditLog[]
+  adConnectionIntents    AdConnectionIntent[]
+  adAuthorizations       AdAuthorization[]
+  adAccounts             AdAccountConnection[]
+  adCampaigns            AdCampaign[]
+  adSyncRuns              AdSyncRun[]
+  adStatusActions         AdCampaignStatusAction[]
 
   @@map("merchants")
 }
@@ -369,6 +421,163 @@ model AuditLog {
   @@index([merchantId, createdAt])
   @@index([actorUserId, createdAt])
   @@map("audit_logs")
+}
+
+model AdConnectionIntent {
+  id                    String          @id @default(uuid())
+  merchantId            String          @map("merchant_id")
+  initiatedByUserId     String          @map("initiated_by_user_id")
+  provider              AdProvider
+  stateHash             String          @unique @map("state_hash")
+  status                AdIntentStatus  @default(INITIATED)
+  expiresAt             DateTime        @map("expires_at")
+  authorizationCodeHash String?         @map("authorization_code_hash")
+  authorizationId      String?          @map("authorization_id")
+  createdAt             DateTime        @default(now()) @map("created_at")
+  updatedAt             DateTime        @updatedAt @map("updated_at")
+  merchant              Merchant        @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  initiatedBy           User            @relation(fields: [initiatedByUserId], references: [id], onDelete: Cascade)
+  authorization         AdAuthorization? @relation(fields: [authorizationId], references: [id], onDelete: SetNull)
+
+  @@index([initiatedByUserId, status])
+  @@index([merchantId, createdAt])
+  @@map("ad_connection_intents")
+}
+
+model AdAuthorization {
+  id                  String               @id @default(uuid())
+  merchantId          String               @map("merchant_id")
+  ownerUserId         String               @map("owner_user_id")
+  provider            AdProvider
+  accessTokenEncrypted String              @map("access_token_encrypted")
+  grantedPermissions  Json?                @map("granted_permissions")
+  tokenExpiresAt      DateTime?            @map("token_expires_at")
+  status              AdConnectionStatus   @default(CONNECTED)
+  lastValidatedAt     DateTime?            @map("last_validated_at")
+  createdAt           DateTime             @default(now()) @map("created_at")
+  updatedAt           DateTime             @updatedAt @map("updated_at")
+  merchant            Merchant             @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  owner               User                 @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+  accounts            AdAccountConnection[]
+  intents             AdConnectionIntent[]
+
+  @@index([merchantId, provider, status])
+  @@index([ownerUserId, provider, status])
+  @@map("ad_authorizations")
+}
+
+model AdAccountConnection {
+  id                   String             @id @default(uuid())
+  merchantId           String             @map("merchant_id")
+  ownerUserId          String             @map("owner_user_id")
+  authorizationId      String             @map("authorization_id")
+  provider             AdProvider
+  externalAccountId    String             @map("external_account_id")
+  name                 String
+  currency             String?
+  reportingTimeZone    String?            @map("reporting_time_zone")
+  status               AdConnectionStatus @default(CONNECTED)
+  lastCampaignSyncAt   DateTime?          @map("last_campaign_sync_at")
+  lastMetricsSyncAt    DateTime?          @map("last_metrics_sync_at")
+  createdAt            DateTime           @default(now()) @map("created_at")
+  updatedAt            DateTime           @updatedAt @map("updated_at")
+  merchant             Merchant           @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  owner                User               @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+  authorization        AdAuthorization    @relation(fields: [authorizationId], references: [id], onDelete: Restrict)
+  campaigns            AdCampaign[]
+  syncRuns             AdSyncRun[]
+
+  @@unique([ownerUserId, provider, externalAccountId])
+  @@unique([provider, externalAccountId])
+  @@index([merchantId, status])
+  @@map("ad_account_connections")
+}
+
+model AdCampaign {
+  id                    String               @id @default(uuid())
+  merchantId            String               @map("merchant_id")
+  accountConnectionId   String               @map("account_connection_id")
+  externalCampaignId    String               @map("external_campaign_id")
+  name                  String
+  objective             String?
+  configuredStatus      String?              @map("configured_status")
+  effectiveStatus       String?              @map("effective_status")
+  statusObservedAt      DateTime?            @map("status_observed_at")
+  sourceUpdatedAt       DateTime?            @map("source_updated_at")
+  createdAt             DateTime             @default(now()) @map("created_at")
+  updatedAt             DateTime             @updatedAt @map("updated_at")
+  merchant              Merchant             @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  accountConnection     AdAccountConnection  @relation(fields: [accountConnectionId], references: [id], onDelete: Cascade)
+  dailyMetrics          AdCampaignDailyMetric[]
+  statusActions         AdCampaignStatusAction[]
+
+  @@unique([accountConnectionId, externalCampaignId])
+  @@index([merchantId, configuredStatus])
+  @@map("ad_campaigns")
+}
+
+model AdCampaignDailyMetric {
+  id                 String      @id @default(uuid())
+  campaignId         String      @map("campaign_id")
+  reportDate         DateTime    @db.Date @map("report_date")
+  currency           String?
+  spend              Decimal?    @db.Decimal(18, 4)
+  impressions        BigInt?
+  clicks             BigInt?
+  reportedPurchases  BigInt?     @map("reported_purchases")
+  reportedPurchaseValue Decimal? @db.Decimal(18, 4) @map("reported_purchase_value")
+  attributionSetting String?     @map("attribution_setting")
+  metricVersion      String      @default("meta-insights-v1") @map("metric_version")
+  retrievedAt        DateTime    @default(now()) @map("retrieved_at")
+  campaign           AdCampaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, reportDate])
+  @@index([reportDate])
+  @@map("ad_campaign_daily_metrics")
+}
+
+model AdSyncRun {
+  id                 String          @id @default(uuid())
+  merchantId         String          @map("merchant_id")
+  accountConnectionId String         @map("account_connection_id")
+  trigger            AdSyncTrigger
+  status             AdSyncStatus    @default(QUEUED)
+  rangeFrom          DateTime?       @db.Date @map("range_from")
+  rangeTo            DateTime?       @db.Date @map("range_to")
+  campaignsProcessed Int             @default(0) @map("campaigns_processed")
+  metricsProcessed   Int             @default(0) @map("metrics_processed")
+  failureCode        String?         @map("failure_code")
+  startedAt          DateTime?       @map("started_at")
+  finishedAt         DateTime?       @map("finished_at")
+  createdAt          DateTime        @default(now()) @map("created_at")
+  merchant           Merchant        @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  accountConnection  AdAccountConnection @relation(fields: [accountConnectionId], references: [id], onDelete: Cascade)
+
+  @@index([accountConnectionId, createdAt])
+  @@index([merchantId, status])
+  @@map("ad_sync_runs")
+}
+
+model AdCampaignStatusAction {
+  id                 String                @id @default(uuid())
+  merchantId         String                @map("merchant_id")
+  campaignId         String                @map("campaign_id")
+  actorUserId        String                @map("actor_user_id")
+  idempotencyKey     String                @map("idempotency_key")
+  expectedStatus     String                @map("expected_status")
+  requestedStatus    String                @map("requested_status")
+  state              AdStatusActionState   @default(QUEUED)
+  failureCode        String?               @map("failure_code")
+  requestedAt        DateTime              @default(now()) @map("requested_at")
+  completedAt        DateTime?             @map("completed_at")
+  campaign           AdCampaign            @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  merchant           Merchant              @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  actor              User                  @relation(fields: [actorUserId], references: [id], onDelete: Restrict)
+
+  @@unique([campaignId, idempotencyKey])
+  @@index([campaignId, state])
+  @@index([merchantId, requestedAt])
+  @@map("ad_campaign_status_actions")
 }
 
 model RefreshToken {
