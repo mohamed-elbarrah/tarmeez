@@ -3,7 +3,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Activity, Boxes, LayoutDashboard, LogOut, Menu, Settings2, ShoppingBag, Users } from "lucide-react";
+import { Activity, Boxes, LayoutDashboard, LogOut, Menu, Megaphone, Settings2, ShoppingBag, Users } from "lucide-react";
 import { Brand } from "@/components/common/Brand";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
@@ -15,6 +15,7 @@ interface DashboardShellProps { children: ReactNode }
 const navigation = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
   { href: "/connections", label: "Connections", icon: Activity },
+  { href: "/ads", label: "Ads", icon: Megaphone },
   { href: "/products", label: "Products", icon: Boxes },
   { href: "/orders", label: "Orders", icon: ShoppingBag },
   { href: "/customers", label: "Customers", icon: Users },
