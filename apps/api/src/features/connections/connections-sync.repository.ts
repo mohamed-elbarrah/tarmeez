@@ -12,7 +12,11 @@ export class ConnectionsSyncRepository {
   findMembership(userId: string) {
     return this.prisma.merchantMembership.findUnique({
       where: { userId },
-       select: { merchantId: true, role: true, merchant: { select: { status: true } } },
+      select: {
+        merchantId: true,
+        role: true,
+        merchant: { select: { status: true } },
+      },
     });
   }
 
@@ -229,6 +233,19 @@ export class ConnectionsSyncRepository {
     return records.filter((row) => readId(row.id)).length;
   }
 
+  deleteMissing(
+    connectionId: string,
+    resource: SyncResource,
+    externalIds: string[],
+  ) {
+    const where = { connectionId, externalId: { notIn: externalIds } };
+    if (resource === 'PRODUCTS')
+      return this.prisma.commerceProduct.deleteMany({ where });
+    if (resource === 'CUSTOMERS')
+      return this.prisma.commerceCustomer.deleteMany({ where });
+    return this.prisma.commerceOrder.deleteMany({ where });
+  }
+
   private async upsertProduct(
     connectionId: string,
     merchantId: string,
@@ -357,8 +374,8 @@ export class ConnectionsSyncRepository {
       if (Array.isArray(row.items)) {
         const items = [];
         for (const item of row.items.filter(isRecord)) {
-          const product = isRecord(item.product) ? item.product : item;
-          const externalProductId = readId(product.id);
+          const product = isRecord(item.product) ? item.product : undefined;
+          const externalProductId = readId(item.product_id ?? product?.id);
           const linkedProduct = externalProductId
             ? await transaction.commerceProduct.findUnique({
                 where: {
@@ -370,7 +387,10 @@ export class ConnectionsSyncRepository {
                 select: { id: true },
               })
             : null;
-          const itemTotal = item.total ?? item.amount;
+          const itemAmounts = isRecord(item.amounts) ? item.amounts : item;
+          const itemTotal = itemAmounts.total ?? item.total ?? item.amount;
+          const itemUnitPrice =
+            itemAmounts.price_without_tax ?? item.price ?? item.unit_price;
           items.push({
             orderId: savedOrder.id,
             productId: linkedProduct?.id,
@@ -378,10 +398,10 @@ export class ConnectionsSyncRepository {
             externalVariantId: readId(
               item.variant_id ?? nested(item.variant, 'id'),
             ),
-            name: stringValue(product.name ?? item.name),
-            sku: stringValue(product.sku ?? item.sku),
+            name: stringValue(product?.name ?? item.name),
+            sku: stringValue(product?.sku ?? item.sku),
             quantity: money(item.quantity),
-            unitPrice: money(item.price ?? item.unit_price),
+            unitPrice: money(itemUnitPrice),
             total: money(itemTotal),
             currency: stringValue(nested(itemTotal, 'currency') ?? currency),
           });
@@ -448,6 +468,7 @@ function booleanValue(value: unknown): boolean | undefined {
 }
 
 function dateValue(value: unknown): Date | undefined {
+  if (isRecord(value)) return dateValue(value.date);
   if (typeof value !== 'string' && typeof value !== 'number') return undefined;
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? undefined : date;

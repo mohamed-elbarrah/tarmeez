@@ -1,11 +1,12 @@
-import {
-  HttpStatus,
-  Injectable,
-  Logger,
-  Optional,
-} from '@nestjs/common';
+import { HttpStatus, Injectable, Logger, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { createCipheriv, createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
+import {
+  createCipheriv,
+  createHash,
+  createHmac,
+  randomBytes,
+  timingSafeEqual,
+} from 'node:crypto';
 import { AppException } from '../../common/exceptions/app.exception.js';
 import { ConnectionsRepository } from './connections.repository.js';
 import { CommerceSyncService } from './commerce-sync.service.js';
@@ -35,13 +36,22 @@ export class ConnectionsService {
     if (!membership || membership.merchant.status !== 'ACTIVE')
       throw new AppException('errors.merchant.not_found', HttpStatus.NOT_FOUND);
     if (membership.role !== 'OWNER')
-      throw new AppException('errors.connections.workspace_owner_required', HttpStatus.FORBIDDEN);
+      throw new AppException(
+        'errors.connections.workspace_owner_required',
+        HttpStatus.FORBIDDEN,
+      );
     if (!this.config.get<boolean>('SALLA_ENABLED'))
-      throw new AppException('errors.connections.salla_not_configured', HttpStatus.SERVICE_UNAVAILABLE);
+      throw new AppException(
+        'errors.connections.salla_not_configured',
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
     const clientId = this.config.get<string>('SALLA_CLIENT_ID');
     const redirectUri = this.config.get<string>('SALLA_REDIRECT_URI');
     if (!clientId || !redirectUri)
-      throw new AppException('errors.connections.salla_not_configured', HttpStatus.SERVICE_UNAVAILABLE);
+      throw new AppException(
+        'errors.connections.salla_not_configured',
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
     const state = generateOAuthState();
     const expiresAt = new Date(Date.now() + INTENT_TTL_MS);
     const intent = await this.oauthRepository.createIntent({
@@ -55,7 +65,11 @@ export class ConnectionsService {
       redirectUri,
       state,
     });
-    return { intentId: intent.id, authorizationUrl: authorizationUrl.toString(), expiresAt: intent.expiresAt };
+    return {
+      intentId: intent.id,
+      authorizationUrl: authorizationUrl.toString(),
+      expiresAt: intent.expiresAt,
+    };
   }
 
   async handleSallaCallback(input: {
@@ -65,19 +79,38 @@ export class ConnectionsService {
     error_description?: string;
   }) {
     if (!input.state)
-      throw new AppException('errors.connections.salla_state_invalid', HttpStatus.BAD_REQUEST);
-    const intent = await this.oauthRepository.consumeState(hashOAuthState(input.state));
+      throw new AppException(
+        'errors.connections.salla_state_invalid',
+        HttpStatus.BAD_REQUEST,
+      );
+    const intent = await this.oauthRepository.consumeState(
+      hashOAuthState(input.state),
+    );
     if (input.error) {
       await this.oauthRepository.failIntent(intent.id, 'provider_denied', {
-        merchantId: intent.merchantId, actorUserId: intent.initiatedByUserId,
+        merchantId: intent.merchantId,
+        actorUserId: intent.initiatedByUserId,
       });
-      return { intentId: intent.id, status: 'FAILED' as const, reason: 'provider_denied' as const };
+      return {
+        intentId: intent.id,
+        status: 'FAILED' as const,
+        reason: 'provider_denied' as const,
+      };
     }
     if (!input.code) {
-      await this.oauthRepository.failIntent(intent.id, 'authorization_code_missing', {
-        merchantId: intent.merchantId, actorUserId: intent.initiatedByUserId,
-      });
-      return { intentId: intent.id, status: 'FAILED' as const, reason: 'authorization_code_missing' as const };
+      await this.oauthRepository.failIntent(
+        intent.id,
+        'authorization_code_missing',
+        {
+          merchantId: intent.merchantId,
+          actorUserId: intent.initiatedByUserId,
+        },
+      );
+      return {
+        intentId: intent.id,
+        status: 'FAILED' as const,
+        reason: 'authorization_code_missing' as const,
+      };
     }
     let connection: { id: string };
     try {
@@ -85,7 +118,10 @@ export class ConnectionsService {
       const clientSecret = this.config.get<string>('SALLA_CLIENT_SECRET');
       const redirectUri = this.config.get<string>('SALLA_REDIRECT_URI');
       if (!clientId || !clientSecret || !redirectUri)
-        throw new AppException('errors.connections.salla_not_configured', HttpStatus.SERVICE_UNAVAILABLE);
+        throw new AppException(
+          'errors.connections.salla_not_configured',
+          HttpStatus.SERVICE_UNAVAILABLE,
+        );
       const tokens = await this.salla.exchangeAuthorizationCode(
         input.code,
         clientId,
@@ -106,24 +142,44 @@ export class ConnectionsService {
         tokenExpiresAt: exchangeTokenExpiry(tokens.expires_in, tokens.expires),
       });
     } catch (error) {
-      const failed = await this.oauthRepository.failIntent(intent.id, failureCode(error), {
-        merchantId: intent.merchantId, actorUserId: intent.initiatedByUserId,
-      });
-      if (failed === null) return { intentId: intent.id, status: 'CANCELLED' as const };
+      const failed = await this.oauthRepository.failIntent(
+        intent.id,
+        failureCode(error),
+        {
+          merchantId: intent.merchantId,
+          actorUserId: intent.initiatedByUserId,
+        },
+      );
+      if (failed === null)
+        return { intentId: intent.id, status: 'CANCELLED' as const };
       this.logger.warn(`Salla OAuth callback failed for intent ${intent.id}`);
-      return { intentId: intent.id, status: 'FAILED' as const, reason: failureReason(error) };
+      return {
+        intentId: intent.id,
+        status: 'FAILED' as const,
+        reason: failureReason(error),
+      };
     }
     const initialSync = await this.queueInitialSync(intent.id, connection.id);
     return initialSync
       ? { intentId: intent.id, status: 'COMPLETED' as const }
-      : { intentId: intent.id, status: 'COMPLETED' as const, reason: 'sync_failed' as const };
+      : {
+          intentId: intent.id,
+          status: 'COMPLETED' as const,
+          reason: 'sync_failed' as const,
+        };
   }
 
-  private async queueInitialSync(intentId: string, connectionId: string): Promise<boolean> {
+  private async queueInitialSync(
+    intentId: string,
+    connectionId: string,
+  ): Promise<boolean> {
     try {
-      const initialSync = await this.commerceSync.enqueueForConnection(connectionId);
+      const initialSync =
+        await this.commerceSync.enqueueForConnection(connectionId);
       if (!initialSync.queued)
-        this.logger.warn(`Salla initial sync is not queued for completed intent ${intentId}`);
+        this.logger.warn(
+          `Salla initial sync is not queued for completed intent ${intentId}`,
+        );
       return initialSync.queued;
     } catch {
       this.logger.error(
@@ -134,14 +190,28 @@ export class ConnectionsService {
   }
 
   async getSallaIntentStatus(userId: string, intentId: string) {
-    const intent = await this.oauthRepository.findIntentForUser(userId, intentId);
-    if (!intent) throw new AppException('errors.connections.intent_not_found', HttpStatus.NOT_FOUND);
+    const intent = await this.oauthRepository.findIntentForUser(
+      userId,
+      intentId,
+    );
+    if (!intent)
+      throw new AppException(
+        'errors.connections.intent_not_found',
+        HttpStatus.NOT_FOUND,
+      );
     return intent;
   }
 
   async cancelSallaIntent(userId: string, intentId: string) {
-    const intent = await this.oauthRepository.cancelIntentForUser(userId, intentId);
-    if (!intent) throw new AppException('errors.connections.intent_not_found', HttpStatus.NOT_FOUND);
+    const intent = await this.oauthRepository.cancelIntentForUser(
+      userId,
+      intentId,
+    );
+    if (!intent)
+      throw new AppException(
+        'errors.connections.intent_not_found',
+        HttpStatus.NOT_FOUND,
+      );
     return intent;
   }
 
@@ -152,30 +222,71 @@ export class ConnectionsService {
   ) {
     const secret = this.config.get<string>('SALLA_WEBHOOK_SECRET');
     if (!secret || !rawBody || !this.verifyWebhook(headers, rawBody, secret))
-      throw new AppException('errors.webhooks.invalid_signature', HttpStatus.UNAUTHORIZED);
+      throw new AppException(
+        'errors.webhooks.invalid_signature',
+        HttpStatus.UNAUTHORIZED,
+      );
     if (!this.config.get<boolean>('SALLA_ENABLED'))
-      return { received: true, processed: false, reason: 'integration_disabled' as const };
-    if (!isRecord(body)) throw new AppException('errors.webhooks.invalid_payload', HttpStatus.BAD_REQUEST);
+      return {
+        received: true,
+        processed: false,
+        reason: 'integration_disabled' as const,
+      };
+    if (!isRecord(body))
+      throw new AppException(
+        'errors.webhooks.invalid_payload',
+        HttpStatus.BAD_REQUEST,
+      );
     const eventData = isRecord(body.data) ? body.data : body;
     const eventName = body.event ?? body.event_name ?? eventData.event;
     const resource = resourceForEvent(eventName);
     if (resource) {
-      const storeId = readExternalStoreId(eventData) ?? readExternalStoreId(body);
-      if (!storeId) return { received: true, processed: false, reason: 'store_id_missing' };
-      const eventId = readEventId(body) ?? readNestedEventId(eventData) ?? createHash('sha256').update(rawBody).digest('hex');
-      const queued = await this.commerceSync.enqueueWebhookSync(storeId, resource, eventId);
-      return { received: true, processed: queued.queued, syncRunId: queued.syncRunId };
+      const storeId =
+        readExternalStoreId(eventData) ?? readExternalStoreId(body);
+      if (!storeId)
+        return { received: true, processed: false, reason: 'store_id_missing' };
+      const eventId =
+        readEventId(body) ??
+        readNestedEventId(eventData) ??
+        createHash('sha256').update(rawBody).digest('hex');
+      const queued = await this.commerceSync.enqueueWebhookSync(
+        storeId,
+        resource,
+        eventId,
+      );
+      return {
+        received: true,
+        processed: queued.queued,
+        syncRunId: queued.syncRunId,
+      };
     }
-    if (eventName !== 'app.store.authorize' && eventName !== 'app.store.authorized')
+    if (
+      eventName !== 'app.store.authorize' &&
+      eventName !== 'app.store.authorized'
+    )
       return { received: true, processed: false };
     const accessToken = eventData.access_token ?? body.access_token;
     if (typeof accessToken !== 'string' || !accessToken)
-      return { received: true, processed: false, reason: 'authorization_token_missing' };
+      return {
+        received: true,
+        processed: false,
+        reason: 'authorization_token_missing',
+      };
     const identity = await this.salla.getStoreIdentity(accessToken);
-    const existing = await this.repository.findConnectionByExternalStoreId(identity.id);
-    if (!existing) return { received: true, processed: false, reason: 'unknown_store' };
-    if (existing.status !== 'CONNECTED' && existing.status !== 'REAUTH_REQUIRED')
-      return { received: true, processed: false, reason: 'connection_inactive' };
+    const existing = await this.repository.findConnectionByExternalStoreId(
+      identity.id,
+    );
+    if (!existing)
+      return { received: true, processed: false, reason: 'unknown_store' };
+    if (
+      existing.status !== 'CONNECTED' &&
+      existing.status !== 'REAUTH_REQUIRED'
+    )
+      return {
+        received: true,
+        processed: false,
+        reason: 'connection_inactive',
+      };
     const refreshToken = eventData.refresh_token ?? body.refresh_token;
     const rawExpiry = eventData.expires ?? eventData.expires_at ?? body.expires;
     const key = this.encryptionKey();
@@ -190,21 +301,30 @@ export class ConnectionsService {
         ? { tokenExpiresAt: unixSecondsExpiry(rawExpiry) ?? undefined }
         : {}),
     };
-    const updated = await this.repository.updateWebhookTokens(identity.id, webhookData, {
-      merchantId: existing.merchantId,
-      connectionId: existing.id,
-      dedupeKey: `salla-auth-${createHash('sha256').update(rawBody).digest('hex')}`,
-    });
+    const updated = await this.repository.updateWebhookTokens(
+      identity.id,
+      webhookData,
+      {
+        merchantId: existing.merchantId,
+        connectionId: existing.id,
+        dedupeKey: `salla-auth-${createHash('sha256').update(rawBody).digest('hex')}`,
+      },
+    );
     if ('duplicate' in updated && updated.duplicate)
       return { received: true, processed: false, reason: 'duplicate' as const };
     if (updated.count !== 1)
-      return { received: true, processed: false, reason: 'connection_inactive' };
+      return {
+        received: true,
+        processed: false,
+        reason: 'connection_inactive',
+      };
     return { received: true, processed: true };
   }
 
   async list(userId: string) {
     const membership = await this.repository.findWorkspaceOwner(userId);
-    if (!membership || membership.merchant.status !== 'ACTIVE') throw new AppException('errors.merchant.not_found', HttpStatus.NOT_FOUND);
+    if (!membership || membership.merchant.status !== 'ACTIVE')
+      throw new AppException('errors.merchant.not_found', HttpStatus.NOT_FOUND);
     return this.repository.listForWorkspace(membership.merchantId);
   }
 
@@ -221,57 +341,88 @@ export class ConnectionsService {
     }
   }
 
-  private verifyWebhook(headers: { signature?: string; authorization?: string; strategy?: string }, body: Buffer, secret: string) {
+  private verifyWebhook(
+    headers: { signature?: string; authorization?: string; strategy?: string },
+    body: Buffer,
+    secret: string,
+  ) {
     if (headers.strategy?.toLowerCase() === 'token') {
       const supplied = headers.authorization?.replace(/^Bearer\s+/i, '').trim();
       if (!supplied) return false;
       const expected = Buffer.from(secret);
       const received = Buffer.from(supplied);
-      return received.length === expected.length && timingSafeEqual(received, expected);
+      return (
+        received.length === expected.length &&
+        timingSafeEqual(received, expected)
+      );
     }
     if (!headers.signature) return false;
     const received = Buffer.from(headers.signature.trim().toLowerCase(), 'hex');
     const expected = createHmac('sha256', secret).update(body).digest();
-    return received.length === expected.length && timingSafeEqual(received, expected);
+    return (
+      received.length === expected.length && timingSafeEqual(received, expected)
+    );
   }
 
   private encryptionKey(): Buffer {
     const value = this.config.get<string>('SALLA_TOKEN_ENCRYPTION_KEY');
     const key = value ? Buffer.from(value, 'base64') : Buffer.alloc(0);
-    if (key.length !== 32) throw new AppException('errors.connections.token_encryption_misconfigured', HttpStatus.SERVICE_UNAVAILABLE);
+    if (key.length !== 32)
+      throw new AppException(
+        'errors.connections.token_encryption_misconfigured',
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
     return key;
   }
 
   private encrypt(value: string, key: Buffer): string {
     const iv = randomBytes(12);
     const cipher = createCipheriv('aes-256-gcm', key, iv);
-    const encrypted = Buffer.concat([cipher.update(value, 'utf8'), cipher.final()]);
-    return [iv, cipher.getAuthTag(), encrypted].map((part) => part.toString('base64url')).join('.');
+    const encrypted = Buffer.concat([
+      cipher.update(value, 'utf8'),
+      cipher.final(),
+    ]);
+    return [iv, cipher.getAuthTag(), encrypted]
+      .map((part) => part.toString('base64url'))
+      .join('.');
   }
 }
 
 function durationExpiry(value: number | undefined): Date | null {
-  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) return null;
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0)
+    return null;
   return new Date(Date.now() + value * 1000);
 }
 
-function exchangeTokenExpiry(expiresIn: number | undefined, expires: number | undefined): Date | null {
-  return expiresIn !== undefined ? durationExpiry(expiresIn) : unixSecondsExpiry(expires);
+function exchangeTokenExpiry(
+  expiresIn: number | undefined,
+  expires: number | undefined,
+): Date | null {
+  return expiresIn !== undefined
+    ? durationExpiry(expiresIn)
+    : unixSecondsExpiry(expires);
 }
 
 function unixSecondsExpiry(value: number | undefined): Date | null {
-  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) return null;
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0)
+    return null;
   return new Date(value * 1000);
 }
 
 function failureCode(error: unknown): string {
-  return error instanceof AppException ? error.key.split('.').at(-1) ?? 'oauth_failed' : 'oauth_failed';
+  return error instanceof AppException
+    ? (error.key.split('.').at(-1) ?? 'oauth_failed')
+    : 'oauth_failed';
 }
 
-function failureReason(error: unknown): 'oauth_failed' | 'ownership_conflict' | 'not_configured' {
+function failureReason(
+  error: unknown,
+): 'oauth_failed' | 'ownership_conflict' | 'not_configured' {
   if (!(error instanceof AppException)) return 'oauth_failed';
-  if (error.key === 'errors.connections.salla_ownership_conflict') return 'ownership_conflict';
-  if (error.key === 'errors.connections.salla_not_configured') return 'not_configured';
+  if (error.key === 'errors.connections.salla_ownership_conflict')
+    return 'ownership_conflict';
+  if (error.key === 'errors.connections.salla_not_configured')
+    return 'not_configured';
   return 'oauth_failed';
 }
 
@@ -287,9 +438,12 @@ function resourceForEvent(event: unknown): SyncResource | undefined {
   return undefined;
 }
 
-function readExternalStoreId(value: Record<string, unknown>): string | undefined {
-  const direct = value.store_id ?? value.merchant_id;
-  if (typeof direct === 'string' || typeof direct === 'number') return String(direct);
+function readExternalStoreId(
+  value: Record<string, unknown>,
+): string | undefined {
+  const direct = value.store_id ?? value.merchant_id ?? value.merchant;
+  if (typeof direct === 'string' || typeof direct === 'number')
+    return String(direct);
   for (const key of ['store', 'merchant']) {
     const nested = value[key];
     if (isRecord(nested)) {
@@ -309,8 +463,12 @@ function readEventId(value: Record<string, unknown>): string | undefined {
 
 function readNestedEventId(value: Record<string, unknown>): string | undefined {
   const nestedEvent = value.event;
-  const candidate = value.event_id ?? value.eventId ??
-    (isRecord(nestedEvent) ? nestedEvent.event_id ?? nestedEvent.eventId : undefined);
+  const candidate =
+    value.event_id ??
+    value.eventId ??
+    (isRecord(nestedEvent)
+      ? (nestedEvent.event_id ?? nestedEvent.eventId)
+      : undefined);
   return typeof candidate === 'string' || typeof candidate === 'number'
     ? String(candidate)
     : undefined;
