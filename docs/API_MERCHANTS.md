@@ -18,16 +18,16 @@ All successful responses use `{ "success": true, "data": ... }`. Protected route
 
 ## Endpoints
 
-| Method | Path | Permission | Purpose | Success status |
-|---|---|---|---|---:|
-| `GET` | `/merchants/me` | Owner or viewer | Get the caller's workspace and membership | `200` |
-| `PATCH` | `/merchants/me` | Owner | Rename the workspace | `200` |
-| `GET` | `/merchants/me/team` | Owner or viewer | List workspace members | `200` |
-| `GET` | `/merchants/me/team/invitations` | Owner | List pending and expired, non-revoked invitations | `200` |
-| `POST` | `/merchants/me/team/invitations` | Owner | Invite an email as a viewer | `201` |
-| `POST` | `/merchants/me/team/invitations/:invitationId/resend` | Owner | Rotate the token and resend an invitation | `200` |
-| `DELETE` | `/merchants/me/team/invitations/:invitationId` | Owner | Revoke a pending invitation | `200` |
-| `DELETE` | `/merchants/me/team/:membershipId` | Owner | Remove a viewer and revoke their refresh sessions | `200` |
+| Method   | Path                                                  | Permission      | Purpose                                           | Success status |
+| -------- | ----------------------------------------------------- | --------------- | ------------------------------------------------- | -------------: |
+| `GET`    | `/merchants/me`                                       | Owner or viewer | Get the caller's workspace and membership         |          `200` |
+| `PATCH`  | `/merchants/me`                                       | Owner           | Rename the workspace                              |          `200` |
+| `GET`    | `/merchants/me/team`                                  | Owner or viewer | List workspace members                            |          `200` |
+| `GET`    | `/merchants/me/team/invitations`                      | Owner           | List pending and expired, non-revoked invitations |          `200` |
+| `POST`   | `/merchants/me/team/invitations`                      | Owner           | Invite an email as a viewer                       |          `201` |
+| `POST`   | `/merchants/me/team/invitations/:invitationId/resend` | Owner           | Rotate the token and resend an invitation         |          `200` |
+| `DELETE` | `/merchants/me/team/invitations/:invitationId`        | Owner           | Revoke a pending invitation                       |          `200` |
+| `DELETE` | `/merchants/me/team/:membershipId`                    | Owner           | Remove a viewer and revoke their refresh sessions |          `200` |
 
 All request bodies are JSON. The workspace name is trimmed and limited to 120 characters.
 
@@ -76,20 +76,20 @@ Invitation list/create/resend responses include `id`, `email`, `role`, `expiresA
 
 Every merchant route resolves the caller's membership. Team operations are scoped to that caller's workspace; a caller cannot act on a membership or invitation from another workspace. Removing the owner is prohibited. Removing a viewer revokes their refresh tokens; the removed user's existing access token cannot resolve a workspace membership.
 
-| Status | Error key | Meaning |
-|---:|---|---|
-| `401` | `errors.auth.unauthorized` | Missing or invalid access token |
-| `403` | `errors.merchant.owner_required` | The action is owner-only |
-| `403` | `errors.merchant.workspace_suspended` | The workspace is not active |
-| `404` | `errors.merchant.not_found` | The caller has no workspace membership |
-| `404` | `errors.merchant.member_not_found` | The target member is not in the caller's workspace |
-| `404` | `errors.merchant.invitation_not_found` | The invitation is not pending in the caller's workspace |
-| `409` | `errors.merchant.user_already_assigned` | The invitee already belongs to a workspace |
-| `409` | `errors.merchant.existing_account_invitation_required` | Use the existing-account acceptance flow; accounts are not transferred |
-| `409` | `errors.merchant.invitation_already_pending` | A live invitation already exists for that email |
-| `409` | `errors.merchant.owner_cannot_be_removed` | Workspace ownership cannot be removed |
-| `400` | `errors.merchant.invitation_invalid_or_expired` | Token is invalid, expired, revoked, or already used |
-| `400` | `errors.merchant.invitation_token_required` | A pending invitee must include the invitation token during registration |
-| `503` | `errors.auth.email_delivery_failed` | Invitation email could not be delivered |
+| Status | Error key                                              | Meaning                                                                 |
+| -----: | ------------------------------------------------------ | ----------------------------------------------------------------------- |
+|  `401` | `errors.auth.unauthorized`                             | Missing or invalid access token                                         |
+|  `403` | `errors.merchant.owner_required`                       | The action is owner-only                                                |
+|  `403` | `errors.merchant.workspace_suspended`                  | The workspace is not active                                             |
+|  `404` | `errors.merchant.not_found`                            | The caller has no workspace membership                                  |
+|  `404` | `errors.merchant.member_not_found`                     | The target member is not in the caller's workspace                      |
+|  `404` | `errors.merchant.invitation_not_found`                 | The invitation is not pending in the caller's workspace                 |
+|  `409` | `errors.merchant.user_already_assigned`                | The invitee already belongs to a workspace                              |
+|  `409` | `errors.merchant.existing_account_invitation_required` | Use the existing-account acceptance flow; accounts are not transferred  |
+|  `409` | `errors.merchant.invitation_already_pending`           | A live invitation already exists for that email                         |
+|  `409` | `errors.merchant.owner_cannot_be_removed`              | Workspace ownership cannot be removed                                   |
+|  `400` | `errors.merchant.invitation_invalid_or_expired`        | Token is invalid, expired, revoked, or already used                     |
+|  `400` | `errors.merchant.invitation_token_required`            | A pending invitee must include the invitation token during registration |
+|  `503` | `errors.auth.email_delivery_failed`                    | Invitation email could not be delivered                                 |
 
 See [`API_AUTH.md`](API_AUTH.md) for the shared authentication, cookie, CORS, and OTP contract.

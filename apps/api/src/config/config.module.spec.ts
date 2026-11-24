@@ -36,8 +36,7 @@ describe('validateEnvironment Salla Custom Mode configuration', () => {
         SALLA_ENABLED: true,
         SALLA_CLIENT_ID: 'client-id',
         SALLA_CLIENT_SECRET: 'client-secret',
-        SALLA_REDIRECT_URI:
-          'http://localhost:4000/connections/salla/callback',
+        SALLA_REDIRECT_URI: 'http://localhost:4000/connections/salla/callback',
         SALLA_TOKEN_ENCRYPTION_KEY: randomBytes(32).toString('base64'),
         SALLA_WEBHOOK_SECRET: 'webhook-secret',
       }),
@@ -64,7 +63,9 @@ describe('validateEnvironment Salla Custom Mode configuration', () => {
           SALLA_WEBHOOK_SECRET: 'webhook-secret',
         }),
       ),
-    ).toThrow('SALLA_REDIRECT_URI must use HTTPS when Salla is enabled in production.');
+    ).toThrow(
+      'SALLA_REDIRECT_URI must use HTTPS when Salla is enabled in production.',
+    );
   });
 
   it('requires the encryption key to decode to exactly 32 bytes', () => {
@@ -80,7 +81,9 @@ describe('validateEnvironment Salla Custom Mode configuration', () => {
           SALLA_WEBHOOK_SECRET: 'webhook-secret',
         }),
       ),
-    ).toThrow('SALLA_TOKEN_ENCRYPTION_KEY must be a base64-encoded 32-byte key.');
+    ).toThrow(
+      'SALLA_TOKEN_ENCRYPTION_KEY must be a base64-encoded 32-byte key.',
+    );
   });
 });
 

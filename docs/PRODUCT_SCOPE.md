@@ -158,43 +158,46 @@ verified.
 This sequence expresses product intent, not fixed release dates or a
 final sprint plan.
 
-  -----------------------------------------------------------------------
-  Phase                               Intended outcome
-  ----------------------------------- -----------------------------------
-  0\. Validation and definition       Confirm merchant needs, platform
-                                      constraints, tracking feasibility,
-                                      data requirements and first-release
-                                      boundaries.
+---
 
-  1\. Product foundation              Establish merchant workspaces,
-                                      access control, secure connections
-                                      and operational foundations.
+Phase Intended outcome
 
-  2\. Commerce connectivity           Deliver and verify Salla and Zid
-                                      connection and data synchronization
-                                      capabilities.
+---
 
-  3\. Core commerce intelligence      Present reliable store data and
-                                      foundational commerce analytics.
+0\. Validation and definition Confirm merchant needs, platform
+constraints, tracking feasibility,
+data requirements and first-release
+boundaries.
 
-  4\. Advertising connectivity        Connect selected advertising
-                                      platforms and retrieve their
-                                      available data.
+1\. Product foundation Establish merchant workspaces,
+access control, secure connections
+and operational foundations.
 
-  5\. Storefront tracking             Deploy and validate Tarmeez
-                                      tracking on supported storefronts.
+2\. Commerce connectivity Deliver and verify Salla and Zid
+connection and data synchronization
+capabilities.
 
-  6\. Unified marketing intelligence  Connect commerce, advertising and
-                                      behavioural data; deliver customer
-                                      journeys and validated attribution.
+3\. Core commerce intelligence Present reliable store data and
+foundational commerce analytics.
 
-  7\. Decision support                Add advanced insights, alerts,
-                                      recommendations and carefully
-                                      scoped automation.
+4\. Advertising connectivity Connect selected advertising
+platforms and retrieve their
+available data.
 
-  8\. Progressive store operations    Add supported write and management
-                                      workflows incrementally.
-  -----------------------------------------------------------------------
+5\. Storefront tracking Deploy and validate Tarmeez
+tracking on supported storefronts.
+
+6\. Unified marketing intelligence Connect commerce, advertising and
+behavioural data; deliver customer
+journeys and validated attribution.
+
+7\. Decision support Add advanced insights, alerts,
+recommendations and carefully
+scoped automation.
+
+8\. Progressive store operations Add supported write and management
+workflows incrementally.
+-----------------------------------------------------------------------
 
 The sequence may change based on dependencies, merchant validation and
 platform approval timelines. Attribution must not be treated as
@@ -238,38 +241,38 @@ store write operations before support and safety are verified.
 
 ### Data integrity
 
--   Preserve source identifiers and source context.
--   Prevent duplicate ingestion and unsafe repeated processing.
--   Handle updates, late-arriving events and synchronization gaps.
--   Make data freshness and synchronization failures visible.
--   Define reconciliation between source records and Tarmeez records.
+- Preserve source identifiers and source context.
+- Prevent duplicate ingestion and unsafe repeated processing.
+- Handle updates, late-arriving events and synchronization gaps.
+- Make data freshness and synchronization failures visible.
+- Define reconciliation between source records and Tarmeez records.
 
 ### Security and access
 
--   Isolate merchant data.
--   Protect access tokens, secrets and personal data.
--   Apply least-privilege permissions.
--   Record sensitive administrative and operational actions where
-    appropriate.
--   Define secure disconnection and credential-revocation handling.
+- Isolate merchant data.
+- Protect access tokens, secrets and personal data.
+- Apply least-privilege permissions.
+- Record sensitive administrative and operational actions where
+  appropriate.
+- Define secure disconnection and credential-revocation handling.
 
 ### Privacy and governance
 
--   Determine applicable consent requirements before activating
-    tracking.
--   Define collection purpose, data minimization, retention and
-    deletion.
--   Document treatment of personal and sensitive customer information.
--   Review applicable laws and platform policies for target markets.
+- Determine applicable consent requirements before activating
+  tracking.
+- Define collection purpose, data minimization, retention and
+  deletion.
+- Document treatment of personal and sensitive customer information.
+- Review applicable laws and platform policies for target markets.
 
 ### Reliability and usability
 
--   Communicate partial data, stale data and integration errors
-    honestly.
--   Support safe retries and recovery.
--   Make metric definitions understandable.
--   Avoid presenting estimates as verified facts.
--   Provide useful empty, loading, error and partial-result states.
+- Communicate partial data, stale data and integration errors
+  honestly.
+- Support safe retries and recovery.
+- Make metric definitions understandable.
+- Avoid presenting estimates as verified facts.
+- Provide useful empty, loading, error and partial-result states.
 
 ## 7. Dependencies and constraints
 
@@ -285,60 +288,63 @@ dependencies have been investigated and recorded.
 
 ## 8. Open decisions register
 
-  -----------------------------------------------------------------------
-  ID                      Open decision /         Evidence required
-                          investigation           
-  ----------------------- ----------------------- -----------------------
-  O-01                    Salla app setup,        Current official
-                          permissions, review and documentation and
-                          publication             working test
-                                                  integration
+---
 
-  O-02                    Zid app setup,          Current official
-                          permissions, review and documentation and
-                          publication             working test
-                                                  integration
+ID Open decision / Evidence required
+investigation
 
-  O-03                    Commerce data fields    Field-level API review
-                          available from each     and sample responses
-                          platform                
+---
 
-  O-04                    Webhook coverage,       Official documentation
-                          verification and retry  and controlled tests
-                          behaviour               
+O-01 Salla app setup, Current official
+permissions, review and documentation and
+publication working test
+integration
 
-  O-05                    Tracking installation   Working installation
-                          mechanism for each      and real-store event
-                          storefront              tests
+O-02 Zid app setup, Current official
+permissions, review and documentation and
+publication working test
+integration
 
-  O-06                    Event taxonomy and      Approved tracking
-                          visitor/session         specification and
-                          identification          privacy review
+O-03 Commerce data fields Field-level API review
+available from each and sample responses
+platform
 
-  O-07                    Advertising platforms   Merchant needs, API
-                          for the first release   access and
-                                                  implementation
-                                                  assessment
+O-04 Webhook coverage, Official documentation
+verification and retry and controlled tests
+behaviour
 
-  O-08                    Attribution models and  Data-linkage
-                          confidence/coverage     experiments and
-                          presentation            approved metric
-                                                  definitions
+O-05 Tracking installation Working installation
+mechanism for each and real-store event
+storefront tests
 
-  O-09                    Revenue, net sales,     Business rules and
-                          cost and profit         verified source fields
-                          definitions             
+O-06 Event taxonomy and Approved tracking
+visitor/session specification and
+identification privacy review
 
-  O-10                    First-release boundary  Product-owner decision
-                          and release strategy    informed by validation
+O-07 Advertising platforms Merchant needs, API
+for the first release access and
+implementation
+assessment
 
-  O-11                    Subscription plans,     Business and market
-                          limits and pricing      decisions
+O-08 Attribution models and Data-linkage
+confidence/coverage experiments and
+presentation approved metric
+definitions
 
-  O-12                    Target-market privacy   Appropriate legal or
-                          and compliance          specialist review
-                          obligations             
-  -----------------------------------------------------------------------
+O-09 Revenue, net sales, Business rules and
+cost and profit verified source fields
+definitions
+
+O-10 First-release boundary Product-owner decision
+and release strategy informed by validation
+
+O-11 Subscription plans, Business and market
+limits and pricing decisions
+
+O-12 Target-market privacy Appropriate legal or
+and compliance specialist review
+obligations
+-----------------------------------------------------------------------
 
 For every investigation, record the source, date checked, result,
 limitations and resulting product decision. Do not replace missing
@@ -347,8 +353,7 @@ evidence with assumptions.
 ## 9. Scope change control
 
 Assess every proposed feature or change against: 1. The product vision
-and merchant problem it addresses. 2. The users and workflows affected.
-3. Required data and external platform capabilities. 4. Security,
+and merchant problem it addresses. 2. The users and workflows affected. 3. Required data and external platform capabilities. 4. Security,
 privacy and operational implications. 5. Dependencies and impact on
 existing commitments. 6. Acceptance criteria and how the outcome will be
 verified. 7. Whether it belongs in the current release or a later phase.

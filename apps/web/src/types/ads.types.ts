@@ -1,6 +1,9 @@
-export type AdConnectionStatus = "CONNECTED" | "REAUTH_REQUIRED" | "DISCONNECTED";
-export type AdIntentStatus = "INITIATED" | "AUTHORIZED" | "COMPLETED" | "FAILED" | "EXPIRED" | "CANCELLED";
-export type AdStatusActionState = "QUEUED" | "PROCESSING" | "CONFIRMED" | "REJECTED" | "NOT_CONFIRMED";
+export type AdConnectionStatus =
+  "CONNECTED" | "REAUTH_REQUIRED" | "DISCONNECTED";
+export type AdIntentStatus =
+  "INITIATED" | "AUTHORIZED" | "COMPLETED" | "FAILED" | "EXPIRED" | "CANCELLED";
+export type AdStatusActionState =
+  "QUEUED" | "PROCESSING" | "CONFIRMED" | "REJECTED" | "NOT_CONFIRMED";
 
 export interface AdAccountConnection {
   id: string;
@@ -58,7 +61,10 @@ export interface AdCampaign {
   statusObservedAt: string | null;
   sourceUpdatedAt: string | null;
   updatedAt: string;
-  account: Pick<AdAccountConnection, "id" | "name" | "currency" | "reportingTimeZone" | "ownerUserId">;
+  account: Pick<
+    AdAccountConnection,
+    "id" | "name" | "currency" | "reportingTimeZone" | "ownerUserId"
+  >;
   dailyMetrics: AdMetric[];
 }
 

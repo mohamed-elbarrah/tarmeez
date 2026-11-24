@@ -6,7 +6,11 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 export class AdminRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async listMerchantUsers(input: { page: number; perPage: number; search?: string }) {
+  async listMerchantUsers(input: {
+    page: number;
+    perPage: number;
+    search?: string;
+  }) {
     const search = input.search?.trim();
     const where = {
       role: UserRole.MERCHANT,

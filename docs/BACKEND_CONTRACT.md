@@ -1,4 +1,5 @@
 # Tarmeez — Backend Structure Contract
+
 **Version:** 1.0
 **Stack:** NestJS · Prisma · PostgreSQL · BullMQ · JWT + Refresh Tokens
 **Status:** Mandatory reference for all developers
@@ -107,56 +108,68 @@ src/
 Every endpoint returns the same envelope — no exceptions.
 
 ### Success Response
+
 ```typescript
 // common/types/api-response.types.ts
 
 export interface ApiSuccessResponse<T> {
-  success: true
-  data: T
-  meta?: PaginationMeta
+  success: true;
+  data: T;
+  meta?: PaginationMeta;
 }
 
 export interface PaginationMeta {
-  total: number
-  page: number
-  perPage: number
-  totalPages: number
+  total: number;
+  page: number;
+  perPage: number;
+  totalPages: number;
 }
 ```
 
 ### Error Response
+
 ```typescript
 export interface ApiErrorResponse {
-  success: false
+  success: false;
   error: {
-    key: string          // translation key — e.g. "errors.connection.not_found"
-    statusCode: number
-    details?: Record<string, string[]>  // field-level validation errors
-  }
+    key: string; // translation key — e.g. "errors.connection.not_found"
+    statusCode: number;
+    details?: Record<string, string[]>; // field-level validation errors
+  };
 }
 ```
 
 ### Response Interceptor — applied globally
+
 ```typescript
 // common/interceptors/response.interceptor.ts
-import { CallHandler, ExecutionContext, Injectable, NestInterceptor } from '@nestjs/common'
-import { Observable, map } from 'rxjs'
+import {
+  CallHandler,
+  ExecutionContext,
+  Injectable,
+  NestInterceptor,
+} from "@nestjs/common";
+import { Observable, map } from "rxjs";
 
 @Injectable()
 export class ResponseInterceptor implements NestInterceptor {
-  intercept<T>(context: ExecutionContext, next: CallHandler<T>): Observable<ApiSuccessResponse<T>> {
+  intercept<T>(
+    context: ExecutionContext,
+    next: CallHandler<T>,
+  ): Observable<ApiSuccessResponse<T>> {
     return next.handle().pipe(
       map((data) => ({
         success: true,
         data: data?.data ?? data,
         ...(data?.meta ? { meta: data.meta } : {}),
       })),
-    )
+    );
   }
 }
 ```
 
 ### Translation Key Convention
+
 ```
 errors.<feature>.<description>        # API errors
   errors.auth.invalid_credentials
@@ -173,9 +186,10 @@ success.<feature>.<description>       # Success messages (when needed)
 ## 3. Error Handling
 
 ### Custom Exception Classes
+
 ```typescript
 // common/exceptions/app.exception.ts
-import { HttpException, HttpStatus } from '@nestjs/common'
+import { HttpException, HttpStatus } from "@nestjs/common";
 
 export class AppException extends HttpException {
   constructor(
@@ -183,56 +197,73 @@ export class AppException extends HttpException {
     statusCode: HttpStatus = HttpStatus.BAD_REQUEST,
     details?: Record<string, string[]>,
   ) {
-    super({ key, statusCode, details }, statusCode)
+    super({ key, statusCode, details }, statusCode);
   }
 }
 
 // Usage
-throw new AppException('errors.connection.not_found', HttpStatus.NOT_FOUND)
-throw new AppException('errors.auth.invalid_credentials', HttpStatus.UNAUTHORIZED)
+throw new AppException("errors.connection.not_found", HttpStatus.NOT_FOUND);
+throw new AppException(
+  "errors.auth.invalid_credentials",
+  HttpStatus.UNAUTHORIZED,
+);
 ```
 
 ### Global Exception Filter
+
 ```typescript
 // common/filters/global-exception.filter.ts
-import { ArgumentsHost, Catch, ExceptionFilter, HttpException, HttpStatus, Logger } from '@nestjs/common'
+import {
+  ArgumentsHost,
+  Catch,
+  ExceptionFilter,
+  HttpException,
+  HttpStatus,
+  Logger,
+} from "@nestjs/common";
 
 @Catch()
 export class GlobalExceptionFilter implements ExceptionFilter {
-  private readonly logger = new Logger(GlobalExceptionFilter.name)
+  private readonly logger = new Logger(GlobalExceptionFilter.name);
 
   catch(exception: unknown, host: ArgumentsHost) {
-    const ctx = host.switchToHttp()
-    const response = ctx.getResponse()
+    const ctx = host.switchToHttp();
+    const response = ctx.getResponse();
 
-    let statusCode = HttpStatus.INTERNAL_SERVER_ERROR
-    let key = 'errors.server.internal'
-    let details: Record<string, string[]> | undefined
+    let statusCode = HttpStatus.INTERNAL_SERVER_ERROR;
+    let key = "errors.server.internal";
+    let details: Record<string, string[]> | undefined;
 
     if (exception instanceof HttpException) {
-      statusCode = exception.getStatus()
-      const body = exception.getResponse()
-      const errorBody = typeof body === 'object' && body !== null ? body as { key?: string; details?: Record<string, string[]> } : undefined
-      key = errorBody?.key ?? 'errors.server.unknown'
-      details = errorBody?.details
+      statusCode = exception.getStatus();
+      const body = exception.getResponse();
+      const errorBody =
+        typeof body === "object" && body !== null
+          ? (body as { key?: string; details?: Record<string, string[]> })
+          : undefined;
+      key = errorBody?.key ?? "errors.server.unknown";
+      details = errorBody?.details;
     } else {
-      this.logger.error('Unhandled exception', exception)
+      this.logger.error("Unhandled exception", exception);
     }
 
     response.status(statusCode).json({
       success: false,
       error: { key, statusCode, details },
-    })
+    });
   }
 }
 ```
 
 ### Register globally in main.ts
+
 ```typescript
 // main.ts
-app.useGlobalFilters(new GlobalExceptionFilter())
-app.useGlobalInterceptors(new ResponseInterceptor())
-app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }))
+app.useGlobalFilters(new GlobalExceptionFilter());
+app.useGlobalInterceptors(new ResponseInterceptor());
+app.useGlobalPipes(
+  new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }),
+);
 ```
 
 ---
@@ -243,88 +274,92 @@ All validation lives in DTOs using `class-validator`. No validation inside contr
 
 ```typescript
 // features/auth/dto/login.dto.ts
-import { IsEmail, IsString, MinLength } from 'class-validator'
+import { IsEmail, IsString, MinLength } from "class-validator";
 
 export class LoginDto {
   @IsEmail()
-  email: string
+  email: string;
 
   @IsString()
   @MinLength(8)
-  password: string
+  password: string;
 }
 ```
 
 ```typescript
 // features/connections/dto/create-connection.dto.ts
-import { IsEnum, IsString } from 'class-validator'
-import { ConnectionPlatform } from '@prisma/client'
+import { IsEnum, IsString } from "class-validator";
+import { ConnectionPlatform } from "@prisma/client";
 
 export class CreateConnectionDto {
   @IsEnum(ConnectionPlatform)
-  platform: ConnectionPlatform
+  platform: ConnectionPlatform;
 
   @IsString()
-  authCode: string
+  authCode: string;
 }
 ```
 
 ### DTO Naming Convention
-| Action | Name |
-|--------|------|
-| Create | `create-<resource>.dto.ts` |
-| Update | `update-<resource>.dto.ts` |
-| Query/Filter | `<resource>-filter.dto.ts` |
-| Pagination | `pagination.dto.ts` (shared in common/) |
+
+| Action       | Name                                    |
+| ------------ | --------------------------------------- |
+| Create       | `create-<resource>.dto.ts`              |
+| Update       | `update-<resource>.dto.ts`              |
+| Query/Filter | `<resource>-filter.dto.ts`              |
+| Pagination   | `pagination.dto.ts` (shared in common/) |
 
 ---
 
 ## 5. Authentication & Authorization
 
 ### JWT + Refresh Token Flow
+
 - **Access Token**: short-lived (15 minutes)
 - **Refresh Token**: long-lived (7 days), stored hashed in DB
 
 ```typescript
 // features/auth/strategies/jwt.strategy.ts
-import { Injectable } from '@nestjs/common'
-import { PassportStrategy } from '@nestjs/passport'
-import { ExtractJwt, Strategy } from 'passport-jwt'
-import { ConfigService } from '@nestjs/config'
+import { Injectable } from "@nestjs/common";
+import { PassportStrategy } from "@nestjs/passport";
+import { ExtractJwt, Strategy } from "passport-jwt";
+import { ConfigService } from "@nestjs/config";
 
 @Injectable()
-export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
+export class JwtStrategy extends PassportStrategy(Strategy, "jwt") {
   constructor(config: ConfigService) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
-      secretOrKey: config.get('jwt.accessSecret'),
-    })
+      secretOrKey: config.get("jwt.accessSecret"),
+    });
   }
 
   validate(payload: { sub: string; role: string }) {
-    return { id: payload.sub, role: payload.role }
+    return { id: payload.sub, role: payload.role };
   }
 }
 ```
 
 ### Roles
+
 ```typescript
 // common/types/roles.enum.ts
 export enum UserRole {
-  MERCHANT = 'merchant',
-  ADMIN = 'admin',
+  MERCHANT = "merchant",
+  ADMIN = "admin",
 }
 ```
 
 ```typescript
 // common/decorators/roles.decorator.ts
-import { SetMetadata } from '@nestjs/common'
-import { UserRole } from '../types/roles.enum'
+import { SetMetadata } from "@nestjs/common";
+import { UserRole } from "../types/roles.enum";
 
-export const Roles = (...roles: UserRole[]) => SetMetadata('roles', roles)
+export const Roles = (...roles: UserRole[]) => SetMetadata("roles", roles);
 ```
 
 ### Usage in controllers
+
 ```typescript
 @Get()
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -344,37 +379,38 @@ Controllers call Services. Services call Repositories. Repositories call Prisma.
 
 ```typescript
 // features/connections/connections.repository.ts
-import { Injectable } from '@nestjs/common'
-import { PrismaService } from '@/prisma/prisma.service'
-import { Connection, Prisma } from '@prisma/client'
+import { Injectable } from "@nestjs/common";
+import { PrismaService } from "@/prisma/prisma.service";
+import { Connection, Prisma } from "@prisma/client";
 
 @Injectable()
 export class ConnectionsRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   findById(id: string): Promise<Connection | null> {
-    return this.prisma.connection.findUnique({ where: { id } })
+    return this.prisma.connection.findUnique({ where: { id } });
   }
 
   findAllByMerchant(merchantId: string): Promise<Connection[]> {
-    return this.prisma.connection.findMany({ where: { merchantId } })
+    return this.prisma.connection.findMany({ where: { merchantId } });
   }
 
   create(data: Prisma.ConnectionCreateInput): Promise<Connection> {
-    return this.prisma.connection.create({ data })
+    return this.prisma.connection.create({ data });
   }
 
   update(id: string, data: Prisma.ConnectionUpdateInput): Promise<Connection> {
-    return this.prisma.connection.update({ where: { id }, data })
+    return this.prisma.connection.update({ where: { id }, data });
   }
 
   delete(id: string): Promise<Connection> {
-    return this.prisma.connection.delete({ where: { id } })
+    return this.prisma.connection.delete({ where: { id } });
   }
 }
 ```
 
 ### Service calls Repository — never Prisma directly
+
 ```typescript
 // features/connections/connections.service.ts
 @Injectable()
@@ -382,13 +418,16 @@ export class ConnectionsService {
   constructor(private readonly connectionsRepository: ConnectionsRepository) {}
 
   async findOrFail(id: string, merchantId: string): Promise<Connection> {
-    const connection = await this.connectionsRepository.findById(id)
+    const connection = await this.connectionsRepository.findById(id);
 
     if (!connection || connection.merchantId !== merchantId) {
-      throw new AppException('errors.connection.not_found', HttpStatus.NOT_FOUND)
+      throw new AppException(
+        "errors.connection.not_found",
+        HttpStatus.NOT_FOUND,
+      );
     }
 
-    return connection
+    return connection;
   }
 }
 ```
@@ -449,13 +488,14 @@ enum ConnectionStatus {
 ```
 
 ### Database Naming Rules
-| Item | Convention | Example |
-|------|-----------|---------|
-| Table names | snake_case plural | `merchants`, `connections` |
-| Column names | snake_case | `merchant_id`, `created_at` |
-| Prisma model | PascalCase singular | `Merchant`, `Connection` |
-| Prisma field | camelCase | `merchantId`, `createdAt` |
-| Enums | SCREAMING_SNAKE_CASE | `TRIAL`, `CONNECTED` |
+
+| Item         | Convention           | Example                     |
+| ------------ | -------------------- | --------------------------- |
+| Table names  | snake_case plural    | `merchants`, `connections`  |
+| Column names | snake_case           | `merchant_id`, `created_at` |
+| Prisma model | PascalCase singular  | `Merchant`, `Connection`    |
+| Prisma field | camelCase            | `merchantId`, `createdAt`   |
+| Enums        | SCREAMING_SNAKE_CASE | `TRIAL`, `CONNECTED`        |
 
 ---
 
@@ -466,20 +506,20 @@ All list endpoints use the same cursor-based pagination.
 ```typescript
 // common/types/pagination.types.ts
 export interface PaginationDto {
-  page?: number    // default: 1
-  perPage?: number // default: 20, max: 100
+  page?: number; // default: 1
+  perPage?: number; // default: 20, max: 100
 }
 
 export interface PaginationMeta {
-  total: number
-  page: number
-  perPage: number
-  totalPages: number
+  total: number;
+  page: number;
+  perPage: number;
+  totalPages: number;
 }
 
 export interface PaginatedResult<T> {
-  data: T[]
-  meta: PaginationMeta
+  data: T[];
+  meta: PaginationMeta;
 }
 ```
 
@@ -505,41 +545,43 @@ async findPaginated(page = 1, perPage = 20): Promise<PaginatedResult<Merchant>> 
 ## 9. Background Jobs (BullMQ)
 
 ### Queue Definition
+
 ```typescript
 // jobs/queues/sync.queue.ts
-export const SYNC_QUEUE = 'sync'
+export const SYNC_QUEUE = "sync";
 
 export const SyncJobName = {
-  SALLA_FULL_SYNC: 'salla:full-sync',
-  SALLA_ORDERS_SYNC: 'salla:orders-sync',
-  ZID_FULL_SYNC: 'zid:full-sync',
-} as const
+  SALLA_FULL_SYNC: "salla:full-sync",
+  SALLA_ORDERS_SYNC: "salla:orders-sync",
+  ZID_FULL_SYNC: "zid:full-sync",
+} as const;
 ```
 
 ### Processor Pattern
+
 ```typescript
 // jobs/processors/salla-sync.processor.ts
-import { Processor, WorkerHost } from '@nestjs/bullmq'
-import { Logger } from '@nestjs/common'
-import { Job } from 'bullmq'
-import { SYNC_QUEUE, SyncJobName } from '../queues/sync.queue'
+import { Processor, WorkerHost } from "@nestjs/bullmq";
+import { Logger } from "@nestjs/common";
+import { Job } from "bullmq";
+import { SYNC_QUEUE, SyncJobName } from "../queues/sync.queue";
 
 @Processor(SYNC_QUEUE)
 export class SallaSyncProcessor extends WorkerHost {
-  private readonly logger = new Logger(SallaSyncProcessor.name)
+  private readonly logger = new Logger(SallaSyncProcessor.name);
 
   async process(job: Job): Promise<void> {
-    this.logger.log(`Processing job: ${job.name} | id: ${job.id}`)
+    this.logger.log(`Processing job: ${job.name} | id: ${job.id}`);
 
     switch (job.name) {
       case SyncJobName.SALLA_FULL_SYNC:
-        await this.handleFullSync(job.data)
-        break
+        await this.handleFullSync(job.data);
+        break;
       case SyncJobName.SALLA_ORDERS_SYNC:
-        await this.handleOrdersSync(job.data)
-        break
+        await this.handleOrdersSync(job.data);
+        break;
       default:
-        this.logger.warn(`Unknown job name: ${job.name}`)
+        this.logger.warn(`Unknown job name: ${job.name}`);
     }
   }
 
@@ -547,21 +589,29 @@ export class SallaSyncProcessor extends WorkerHost {
     // sync logic here
   }
 
-  private async handleOrdersSync(data: { connectionId: string; since: string }) {
+  private async handleOrdersSync(data: {
+    connectionId: string;
+    since: string;
+  }) {
     // sync logic here
   }
 }
 ```
 
 ### Job Dispatch Convention
+
 ```typescript
 // Always dispatch through the service, never directly from controller
-await this.syncQueue.add(SyncJobName.SALLA_FULL_SYNC, { connectionId }, {
-  attempts: 3,
-  backoff: { type: 'exponential', delay: 5000 },
-  removeOnComplete: true,
-  removeOnFail: false,   // keep failed jobs for inspection
-})
+await this.syncQueue.add(
+  SyncJobName.SALLA_FULL_SYNC,
+  { connectionId },
+  {
+    attempts: 3,
+    backoff: { type: "exponential", delay: 5000 },
+    removeOnComplete: true,
+    removeOnFail: false, // keep failed jobs for inspection
+  },
+);
 ```
 
 ---
@@ -569,6 +619,7 @@ await this.syncQueue.add(SyncJobName.SALLA_FULL_SYNC, { connectionId }, {
 ## 10. Logging & Auditing
 
 ### Structured Logging — use NestJS Logger with context
+
 ```typescript
 // Always instantiate with class name
 private readonly logger = new Logger(ConnectionsService.name)
@@ -581,6 +632,7 @@ this.logger.debug('Raw API response', payload)  // debug (dev only)
 ```
 
 ### Audit Trail — sensitive actions must be recorded
+
 ```prisma
 model AuditLog {
   id         String   @id @default(uuid())
@@ -596,6 +648,7 @@ model AuditLog {
 ```
 
 ### Actions that must be audited:
+
 - `connection.created` / `connection.deleted`
 - `merchant.suspended` / `merchant.activated`
 - `subscription.changed`
@@ -610,14 +663,14 @@ All config accessed through `ConfigService` — no `process.env` scattered in co
 
 ```typescript
 // config/jwt.config.ts
-import { registerAs } from '@nestjs/config'
+import { registerAs } from "@nestjs/config";
 
-export const jwtConfig = registerAs('jwt', () => ({
+export const jwtConfig = registerAs("jwt", () => ({
   accessSecret: process.env.JWT_ACCESS_SECRET,
   refreshSecret: process.env.JWT_REFRESH_SECRET,
-  accessExpiresIn: process.env.JWT_ACCESS_EXPIRES_IN ?? '15m',
-  refreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN ?? '7d',
-}))
+  accessExpiresIn: process.env.JWT_ACCESS_EXPIRES_IN ?? "15m",
+  refreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN ?? "7d",
+}));
 ```
 
 ```typescript
@@ -630,6 +683,7 @@ const secret = process.env.JWT_ACCESS_SECRET
 ```
 
 ### Required .env keys
+
 ```
 # App
 NODE_ENV=
@@ -676,32 +730,32 @@ Deploy connection schema migrations before setting `SALLA_ENABLED=true`. For exi
 
 ## 12. Naming Conventions
 
-| Item | Convention | Example |
-|------|-----------|---------|
-| Files | kebab-case | `connections.service.ts` |
-| Classes | PascalCase | `ConnectionsService` |
-| Methods | camelCase | `findOrFail()` |
-| Variables | camelCase | `merchantId` |
-| Constants | SCREAMING_SNAKE_CASE | `SYNC_QUEUE` |
-| Enums | PascalCase (name) / SCREAMING (values) | `UserRole.ADMIN` |
-| DTOs | PascalCase + Dto suffix | `CreateConnectionDto` |
-| Modules | kebab-case | `connections.module.ts` |
+| Item      | Convention                             | Example                  |
+| --------- | -------------------------------------- | ------------------------ |
+| Files     | kebab-case                             | `connections.service.ts` |
+| Classes   | PascalCase                             | `ConnectionsService`     |
+| Methods   | camelCase                              | `findOrFail()`           |
+| Variables | camelCase                              | `merchantId`             |
+| Constants | SCREAMING_SNAKE_CASE                   | `SYNC_QUEUE`             |
+| Enums     | PascalCase (name) / SCREAMING (values) | `UserRole.ADMIN`         |
+| DTOs      | PascalCase + Dto suffix                | `CreateConnectionDto`    |
+| Modules   | kebab-case                             | `connections.module.ts`  |
 
 ---
 
 ## 13. Quick Reference — Every Developer Must Know This
 
-| Rule | ✅ Do | ❌ Don't |
-|------|-------|---------|
-| API errors | Throw `AppException` with a key | Throw raw `Error` or `HttpException` |
-| Error messages | Translation key string | Hardcoded text |
-| DB access | Through Repository only | Prisma in controller or service |
-| Config access | `ConfigService` | `process.env` directly |
-| Validation | DTO + `class-validator` | Manual checks in service |
-| Background jobs | BullMQ via service | Direct async calls for long tasks |
-| Logging | `Logger` with class context | `console.log` |
-| Sensitive actions | Write to audit_logs | Leave no trace |
-| Pagination | Shared `PaginationDto` + `PaginatedResult` | Custom shape per endpoint |
+| Rule              | ✅ Do                                      | ❌ Don't                             |
+| ----------------- | ------------------------------------------ | ------------------------------------ |
+| API errors        | Throw `AppException` with a key            | Throw raw `Error` or `HttpException` |
+| Error messages    | Translation key string                     | Hardcoded text                       |
+| DB access         | Through Repository only                    | Prisma in controller or service      |
+| Config access     | `ConfigService`                            | `process.env` directly               |
+| Validation        | DTO + `class-validator`                    | Manual checks in service             |
+| Background jobs   | BullMQ via service                         | Direct async calls for long tasks    |
+| Logging           | `Logger` with class context                | `console.log`                        |
+| Sensitive actions | Write to audit_logs                        | Leave no trace                       |
+| Pagination        | Shared `PaginationDto` + `PaginatedResult` | Custom shape per endpoint            |
 
 ---
 
@@ -723,4 +777,4 @@ Before opening any Pull Request, verify:
 
 ---
 
-*Last updated: November 2026 — Review this document whenever a major stack change is made*
+_Last updated: November 2026 — Review this document whenever a major stack change is made_

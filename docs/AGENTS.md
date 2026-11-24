@@ -1,4 +1,5 @@
 # Tarmeez — AGENTS.md
+
 **Version:** 1.0
 **Last updated:** November 2026
 
@@ -11,6 +12,7 @@
 Tarmeez is a **commerce and marketing intelligence SaaS platform** for merchants on Salla and Zid. It connects store data, advertising data, and first-party tracking into one unified dashboard.
 
 This is a **Monorepo** (Turborepo) with two apps:
+
 - `apps/web` — Next.js 16 merchant dashboard + admin panel
 - `apps/api` — NestJS 12 REST API
 
@@ -37,26 +39,29 @@ docs/
 ## When to Read Each Document
 
 ### Always read first
-| Document | Read when |
-|----------|-----------|
-| `AGENTS.md` | Start of every session — before touching any file |
+
+| Document         | Read when                                                            |
+| ---------------- | -------------------------------------------------------------------- |
+| `AGENTS.md`      | Start of every session — before touching any file                    |
 | Root `README.md` | You need the full picture: stack, setup, architecture, key decisions |
 
 ### Read when working on product decisions
-| Document | Read when |
-|----------|-----------|
-| `PRODUCT_VISION.md` | You are asked about what Tarmeez is, who it serves, or its principles. Also read when a request might conflict with the product's stated boundaries |
-| `PRODUCT_SCOPE.md` | You are asked about what is in or out of scope, which features belong to which phase, or what decisions are still open |
-| `PRODUCT_ROADMAP.md` | You are asked about delivery order, phase timelines, workstreams, or risks |
-| `EXECUTION_PLAN.md` | You are implementing the currently selected delivery sequence |
-| `API_AUTH.md` | You are integrating or changing the implemented authentication API |
-| `API_MERCHANTS.md` | You are integrating or changing workspace, team, or invitation APIs |
+
+| Document             | Read when                                                                                                                                           |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PRODUCT_VISION.md`  | You are asked about what Tarmeez is, who it serves, or its principles. Also read when a request might conflict with the product's stated boundaries |
+| `PRODUCT_SCOPE.md`   | You are asked about what is in or out of scope, which features belong to which phase, or what decisions are still open                              |
+| `PRODUCT_ROADMAP.md` | You are asked about delivery order, phase timelines, workstreams, or risks                                                                          |
+| `EXECUTION_PLAN.md`  | You are implementing the currently selected delivery sequence                                                                                       |
+| `API_AUTH.md`        | You are integrating or changing the implemented authentication API                                                                                  |
+| `API_MERCHANTS.md`   | You are integrating or changing workspace, team, or invitation APIs                                                                                 |
 
 ### Read when writing or reviewing code
-| Document | Read when |
-|----------|-----------|
+
+| Document               | Read when                                                                   |
+| ---------------------- | --------------------------------------------------------------------------- |
 | `FRONTEND_CONTRACT.md` | You are about to write, review, or reason about ANY file inside `apps/web/` |
-| `BACKEND_CONTRACT.md` | You are about to write, review, or reason about ANY file inside `apps/api/` |
+| `BACKEND_CONTRACT.md`  | You are about to write, review, or reason about ANY file inside `apps/api/` |
 
 > **Rule:** Never write a single line of code in either app without first confirming you have read the relevant contract in this session. The contracts are the law — they override any pattern you know from training data.
 
@@ -130,21 +135,21 @@ tarmeez/
 
 ## Tech Stack at a Glance
 
-| Layer | Technology | Version |
-|-------|-----------|---------|
-| Frontend framework | Next.js App Router | 16 |
-| UI components | shadcn/ui + Tailwind CSS | latest |
-| Server state | RTK Query | latest |
-| UI state | Redux Toolkit | latest |
-| Backend framework | NestJS | 12 |
-| ORM | Prisma | 7 (pinned — v8 is RC) |
-| Database | PostgreSQL Alpine | 16 |
-| Queue | BullMQ + Redis Alpine | Redis 7 |
-| Auth | JWT + Refresh Tokens | — |
-| Runtime | Node.js LTS | 26 |
-| Monorepo | Turborepo | latest |
-| Containers | Docker + Docker Compose | — |
-| Deployment | VPS | Docker Compose |
+| Layer              | Technology               | Version               |
+| ------------------ | ------------------------ | --------------------- |
+| Frontend framework | Next.js App Router       | 16                    |
+| UI components      | shadcn/ui + Tailwind CSS | latest                |
+| Server state       | RTK Query                | latest                |
+| UI state           | Redux Toolkit            | latest                |
+| Backend framework  | NestJS                   | 12                    |
+| ORM                | Prisma                   | 7 (pinned — v8 is RC) |
+| Database           | PostgreSQL Alpine        | 16                    |
+| Queue              | BullMQ + Redis Alpine    | Redis 7               |
+| Auth               | JWT + Refresh Tokens     | —                     |
+| Runtime            | Node.js LTS              | 26                    |
+| Monorepo           | Turborepo                | latest                |
+| Containers         | Docker + Docker Compose  | —                     |
+| Deployment         | VPS                      | Docker Compose        |
 
 ---
 
@@ -153,6 +158,7 @@ tarmeez/
 These rules appear in the contracts. They are repeated here so you never violate them by accident.
 
 ### Frontend (`apps/web`)
+
 1. `'use client'` only in leaf components — never in pages or layouts
 2. All API calls through **RTK Query** — never fetch or axios directly
 3. **Server state** (API data) lives in RTK Query — never in Redux
@@ -162,6 +168,7 @@ These rules appear in the contracts. They are repeated here so you never violate
 7. No `any` in TypeScript
 
 ### Backend (`apps/api`)
+
 1. All DB access through **Repository classes** — never Prisma in a controller or service directly
 2. All config through **ConfigService** — never `process.env` in feature code
 3. All errors thrown as **`AppException`** with a translation key — never hardcoded text
@@ -179,27 +186,30 @@ These rules appear in the contracts. They are repeated here so you never violate
 ### Every API response follows this envelope:
 
 **Success:**
+
 ```json
 {
   "success": true,
-  "data": { },
+  "data": {},
   "meta": { "total": 0, "page": 1, "perPage": 20, "totalPages": 0 }
 }
 ```
 
 **Error:**
+
 ```json
 {
   "success": false,
   "error": {
     "key": "errors.connection.not_found",
     "statusCode": 404,
-    "details": { }
+    "details": {}
   }
 }
 ```
 
 ### Error key format: `errors.<feature>.<description>`
+
 ```
 errors.auth.invalid_credentials
 errors.connection.not_found
@@ -232,6 +242,7 @@ PostgreSQL
 ```
 
 **For long-running operations (sync, data ingestion):**
+
 ```
 NestJS Service
       │
@@ -252,16 +263,16 @@ PostgreSQL (via Repository)
 
 ## Feature Boundaries
 
-| Feature | Scope | App |
-|---------|-------|-----|
-| `auth` | Registration, login, JWT, refresh tokens | api |
-| `merchants` | Merchant accounts, profiles, team members | api |
-| `connections` | OAuth with Salla, Zid, Meta — token storage, sync trigger | api |
-| `analytics` | Sales metrics, order data, campaign data | api |
-| `admin` | Internal team panel — merchant management, subscriptions, logs | api |
-| `(auth)` route group | Login, register pages | web |
-| `(dashboard)` route group | Merchant-facing pages | web |
-| `(admin)` route group | Internal admin pages | web |
+| Feature                   | Scope                                                          | App |
+| ------------------------- | -------------------------------------------------------------- | --- |
+| `auth`                    | Registration, login, JWT, refresh tokens                       | api |
+| `merchants`               | Merchant accounts, profiles, team members                      | api |
+| `connections`             | OAuth with Salla, Zid, Meta — token storage, sync trigger      | api |
+| `analytics`               | Sales metrics, order data, campaign data                       | api |
+| `admin`                   | Internal team panel — merchant management, subscriptions, logs | api |
+| `(auth)` route group      | Login, register pages                                          | web |
+| `(dashboard)` route group | Merchant-facing pages                                          | web |
+| `(admin)` route group     | Internal admin pages                                           | web |
 
 ---
 
@@ -270,6 +281,7 @@ PostgreSQL (via Repository)
 The following is the current implementation baseline. It remains subject to the Phase 0 validation and product-owner decisions recorded in `PRODUCT_SCOPE.md` and `PRODUCT_ROADMAP.md`.
 
 ### In scope for MVP (Beta):
+
 - Merchant auth (register, login, refresh)
 - Connect Salla store (OAuth + sync)
 - Connect Zid store (OAuth + sync)
@@ -280,6 +292,7 @@ The following is the current implementation baseline. It remains subject to the 
 - Admin panel (merchants, subscriptions, error logs, invitations)
 
 ### Explicitly out of scope — do not build or suggest:
+
 - Storefront tracking script
 - Customer journey / attribution
 - AI recommendations or alerts
@@ -296,6 +309,7 @@ The following is the current implementation baseline. It remains subject to the 
 Types used by both `apps/web` and `apps/api` live in `packages/types`. When you add a type that both apps need, put it there — not in either app's local `/types` folder.
 
 Examples of shared types:
+
 - `Merchant`, `MerchantStatus`
 - `Connection`, `ConnectionPlatform`, `ConnectionStatus`
 - `ApiSuccessResponse<T>`, `ApiErrorResponse`, `PaginatedResult<T>`
@@ -305,6 +319,7 @@ Examples of shared types:
 ## Environment Variables
 
 ### Backend (`apps/api/.env`)
+
 ```
 NODE_ENV · PORT · FRONTEND_URL
 DATABASE_URL
@@ -316,6 +331,7 @@ META_APP_ID · META_APP_SECRET
 ```
 
 ### Frontend (`apps/web/.env.local`)
+
 ```
 NEXT_PUBLIC_API_URL
 ```
@@ -324,22 +340,22 @@ NEXT_PUBLIC_API_URL
 
 ## Naming Conventions — Quick Reference
 
-| Context | Convention | Example |
-|---------|-----------|---------|
-| Frontend components | PascalCase | `ConnectionCard.tsx` |
-| Frontend hooks | camelCase + use | `useAuth.ts` |
-| Frontend slices | camelCase + Slice | `uiSlice.ts` |
-| Frontend services | camelCase + Api | `connectionsApi.ts` |
-| Backend files | kebab-case | `connections.service.ts` |
-| Backend classes | PascalCase | `ConnectionsService` |
-| Backend DTOs | PascalCase + Dto | `CreateConnectionDto` |
-| DB tables | snake_case plural | `merchants` |
-| DB columns | snake_case | `merchant_id` |
-| Prisma models | PascalCase singular | `Merchant` |
-| Enums (DB) | SCREAMING_SNAKE_CASE | `TRIAL`, `CONNECTED` |
-| BullMQ job names | `feature:action` | `salla:full-sync` |
-| Error keys | `errors.feature.description` | `errors.auth.invalid_credentials` |
-| Branch names | `type/description` | `feature/salla-oauth` |
+| Context             | Convention                   | Example                           |
+| ------------------- | ---------------------------- | --------------------------------- |
+| Frontend components | PascalCase                   | `ConnectionCard.tsx`              |
+| Frontend hooks      | camelCase + use              | `useAuth.ts`                      |
+| Frontend slices     | camelCase + Slice            | `uiSlice.ts`                      |
+| Frontend services   | camelCase + Api              | `connectionsApi.ts`               |
+| Backend files       | kebab-case                   | `connections.service.ts`          |
+| Backend classes     | PascalCase                   | `ConnectionsService`              |
+| Backend DTOs        | PascalCase + Dto             | `CreateConnectionDto`             |
+| DB tables           | snake_case plural            | `merchants`                       |
+| DB columns          | snake_case                   | `merchant_id`                     |
+| Prisma models       | PascalCase singular          | `Merchant`                        |
+| Enums (DB)          | SCREAMING_SNAKE_CASE         | `TRIAL`, `CONNECTED`              |
+| BullMQ job names    | `feature:action`             | `salla:full-sync`                 |
+| Error keys          | `errors.feature.description` | `errors.auth.invalid_credentials` |
+| Branch names        | `type/description`           | `feature/salla-oauth`             |
 
 ---
 
@@ -351,17 +367,17 @@ NEXT_PUBLIC_API_URL
 
 ## What to Do When You Are Unsure
 
-| Situation | Action |
-|-----------|--------|
-| Not sure if a feature is in MVP scope | Read `PRODUCT_SCOPE.md` |
-| Not sure which phase a feature belongs to | Read `PRODUCT_ROADMAP.md` |
-| Not sure if something violates product principles | Read `PRODUCT_VISION.md` |
-| About to write frontend code | Read `FRONTEND_CONTRACT.md` first |
-| About to write backend code | Read `BACKEND_CONTRACT.md` first |
-| Not sure where a new file belongs | Check the folder structure in the relevant contract |
-| Not sure which type of state (Redux vs RTK Query) | Server data → RTK Query. UI-only → Redux |
-| Not sure if a type is shared or local | If both web and api use it → `packages/types`. Otherwise → local `/types` |
-| A request conflicts with documented decisions | Flag it. Do not silently override a documented decision |
+| Situation                                         | Action                                                                    |
+| ------------------------------------------------- | ------------------------------------------------------------------------- |
+| Not sure if a feature is in MVP scope             | Read `PRODUCT_SCOPE.md`                                                   |
+| Not sure which phase a feature belongs to         | Read `PRODUCT_ROADMAP.md`                                                 |
+| Not sure if something violates product principles | Read `PRODUCT_VISION.md`                                                  |
+| About to write frontend code                      | Read `FRONTEND_CONTRACT.md` first                                         |
+| About to write backend code                       | Read `BACKEND_CONTRACT.md` first                                          |
+| Not sure where a new file belongs                 | Check the folder structure in the relevant contract                       |
+| Not sure which type of state (Redux vs RTK Query) | Server data → RTK Query. UI-only → Redux                                  |
+| Not sure if a type is shared or local             | If both web and api use it → `packages/types`. Otherwise → local `/types` |
+| A request conflicts with documented decisions     | Flag it. Do not silently override a documented decision                   |
 
 ---
 
@@ -391,4 +407,4 @@ NEXT_PUBLIC_API_URL
 
 ---
 
-*This file must be updated whenever a major architectural decision changes, a new document is added, or the MVP scope is revised.*
+_This file must be updated whenever a major architectural decision changes, a new document is added, or the MVP scope is revised._

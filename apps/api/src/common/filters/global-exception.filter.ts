@@ -28,9 +28,10 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       key = exception.key;
       details = exception.details;
     } else if (exception instanceof HttpException) {
-      key = statusCode >= HttpStatus.INTERNAL_SERVER_ERROR
-        ? 'errors.server.internal'
-        : 'errors.request.invalid';
+      key =
+        statusCode >= HttpStatus.INTERNAL_SERVER_ERROR
+          ? 'errors.server.internal'
+          : 'errors.request.invalid';
     }
 
     if (statusCode >= HttpStatus.INTERNAL_SERVER_ERROR) {

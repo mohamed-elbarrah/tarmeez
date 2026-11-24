@@ -55,16 +55,29 @@ export class SallaOAuthRepository {
           select: { id: true, status: true },
         });
         if (existing?.status === 'CANCELLED')
-          throw new SallaOAuthStateException('errors.connections.salla_intent_cancelled', 409, existing.id);
+          throw new SallaOAuthStateException(
+            'errors.connections.salla_intent_cancelled',
+            409,
+            existing.id,
+          );
         throw new AppException('errors.connections.salla_state_invalid', 400);
       }
       const intent = await tx.sallaConnectionIntent.findUniqueOrThrow({
         where: { stateHash },
-        select: { id: true, merchantId: true, initiatedByUserId: true, expiresAt: true },
+        select: {
+          id: true,
+          merchantId: true,
+          initiatedByUserId: true,
+          expiresAt: true,
+        },
       });
       const membership = await tx.merchantMembership.findUnique({
         where: { userId: intent.initiatedByUserId },
-        select: { merchantId: true, role: true, merchant: { select: { status: true } } },
+        select: {
+          merchantId: true,
+          role: true,
+          merchant: { select: { status: true } },
+        },
       });
       const invalidMembership =
         !membership ||
@@ -81,22 +94,33 @@ export class SallaOAuthRepository {
             activeIntentKey: null,
           },
         });
-        if (failed.count !== 1) throw new AppException('errors.connections.salla_state_invalid', 400);
-        if (!this.audit) throw new Error('Audit repository is required for invalid callback state');
-        await this.audit.create({
-          merchantId: intent.merchantId,
-          actorUserId: intent.initiatedByUserId,
-          action: 'CONNECTION_AUTHORIZATION_FAILED',
-          entityType: 'SALLA_CONNECTION_INTENT',
-          entityId: intent.id,
-          metadata: { reason: 'workspace_owner_required' },
-        }, tx);
+        if (failed.count !== 1)
+          throw new AppException('errors.connections.salla_state_invalid', 400);
+        if (!this.audit)
+          throw new Error(
+            'Audit repository is required for invalid callback state',
+          );
+        await this.audit.create(
+          {
+            merchantId: intent.merchantId,
+            actorUserId: intent.initiatedByUserId,
+            action: 'CONNECTION_AUTHORIZATION_FAILED',
+            entityType: 'SALLA_CONNECTION_INTENT',
+            entityId: intent.id,
+            metadata: { reason: 'workspace_owner_required' },
+          },
+          tx,
+        );
         return { invalid: true, intentId: intent.id };
       }
       return intent;
     });
     if ('invalid' in result)
-      throw new SallaOAuthStateException('errors.connections.workspace_owner_required', 403, result.intentId);
+      throw new SallaOAuthStateException(
+        'errors.connections.workspace_owner_required',
+        403,
+        result.intentId,
+      );
     return result;
   }
 
@@ -104,7 +128,10 @@ export class SallaOAuthRepository {
     return this.prisma.$transaction(async (tx) => {
       const where = {
         id: intentId,
-        merchant: { status: 'ACTIVE' as const, memberships: { some: { userId } } },
+        merchant: {
+          status: 'ACTIVE' as const,
+          memberships: { some: { userId } },
+        },
       };
       const select = {
         id: true,
@@ -115,8 +142,15 @@ export class SallaOAuthRepository {
         cancelledAt: true,
         failureCode: true,
       } as const;
-      const intent = await tx.sallaConnectionIntent.findFirst({ where, select });
-      if (!intent || intent.expiresAt > new Date() || !['INITIATED', 'PENDING', 'PROCESSING'].includes(intent.status))
+      const intent = await tx.sallaConnectionIntent.findFirst({
+        where,
+        select,
+      });
+      if (
+        !intent ||
+        intent.expiresAt > new Date() ||
+        !['INITIATED', 'PENDING', 'PROCESSING'].includes(intent.status)
+      )
         return intent;
       const expired = await tx.sallaConnectionIntent.updateMany({
         where: {
@@ -137,32 +171,49 @@ export class SallaOAuthRepository {
         where: {
           id: intentId,
           initiatedByUserId: userId,
-          merchant: { status: 'ACTIVE', memberships: { some: { userId, role: 'OWNER' } } },
+          merchant: {
+            status: 'ACTIVE',
+            memberships: { some: { userId, role: 'OWNER' } },
+          },
         },
         select: { id: true, merchantId: true, status: true },
       });
       if (!intent) return null;
-      if (intent.status === 'CANCELLED' || intent.status === 'FAILED' || intent.status === 'EXPIRED')
+      if (
+        intent.status === 'CANCELLED' ||
+        intent.status === 'FAILED' ||
+        intent.status === 'EXPIRED'
+      )
         return { id: intent.id, status: intent.status };
       if (intent.status === 'COMPLETED')
-        throw new AppException('errors.connections.salla_intent_completed', 409);
+        throw new AppException(
+          'errors.connections.salla_intent_completed',
+          409,
+        );
 
       const now = new Date();
       const cancelled = await tx.sallaConnectionIntent.updateMany({
-        where: { id: intentId, status: { in: ['INITIATED', 'PENDING', 'PROCESSING'] } },
+        where: {
+          id: intentId,
+          status: { in: ['INITIATED', 'PENDING', 'PROCESSING'] },
+        },
         data: { status: 'CANCELLED', activeIntentKey: null, cancelledAt: now },
       });
       if (cancelled.count !== 1)
         throw new AppException('errors.connections.salla_state_invalid', 400);
-      if (!this.audit) throw new Error('Audit repository is required for intent cancellation');
-      await this.audit.create({
-        merchantId: intent.merchantId,
-        actorUserId: userId,
-        action: 'CONNECTION_AUTHORIZATION_CANCELLED',
-        entityType: 'SALLA_CONNECTION_INTENT',
-        entityId: intentId,
-        metadata: { status: 'CANCELLED' },
-      }, tx);
+      if (!this.audit)
+        throw new Error('Audit repository is required for intent cancellation');
+      await this.audit.create(
+        {
+          merchantId: intent.merchantId,
+          actorUserId: userId,
+          action: 'CONNECTION_AUTHORIZATION_CANCELLED',
+          entityType: 'SALLA_CONNECTION_INTENT',
+          entityId: intentId,
+          metadata: { status: 'CANCELLED' },
+        },
+        tx,
+      );
       return { id: intent.id, status: 'CANCELLED' as const, cancelledAt: now };
     });
   }
@@ -175,18 +226,27 @@ export class SallaOAuthRepository {
     return this.prisma.$transaction(async (tx) => {
       const result = await tx.sallaConnectionIntent.updateMany({
         where: { id: intentId, status: 'PROCESSING' },
-        data: { status: 'FAILED', failureCode, failedAt: new Date(), activeIntentKey: null },
+        data: {
+          status: 'FAILED',
+          failureCode,
+          failedAt: new Date(),
+          activeIntentKey: null,
+        },
       });
       if (result.count !== 1) return null;
-      if (!this.audit) throw new Error('Audit repository is required for intent failure');
-      await this.audit.create({
-        merchantId: auditInput.merchantId,
-        actorUserId: auditInput.actorUserId,
-        action: 'CONNECTION_AUTHORIZATION_FAILED',
-        entityType: 'SALLA_CONNECTION_INTENT',
-        entityId: intentId,
-        metadata: { reason: failureCode },
-      }, tx);
+      if (!this.audit)
+        throw new Error('Audit repository is required for intent failure');
+      await this.audit.create(
+        {
+          merchantId: auditInput.merchantId,
+          actorUserId: auditInput.actorUserId,
+          action: 'CONNECTION_AUTHORIZATION_FAILED',
+          entityType: 'SALLA_CONNECTION_INTENT',
+          entityId: intentId,
+          metadata: { reason: failureCode },
+        },
+        tx,
+      );
       return result;
     });
   }
@@ -205,25 +265,50 @@ export class SallaOAuthRepository {
     return this.prisma.$transaction(async (tx) => {
       const { intentId: _intentId, ...connectionData } = input;
       const existing = await tx.storeConnection.findUnique({
-        where: { platform_externalStoreId: { platform: 'SALLA', externalStoreId: input.externalStoreId } },
+        where: {
+          platform_externalStoreId: {
+            platform: 'SALLA',
+            externalStoreId: input.externalStoreId,
+          },
+        },
         select: { id: true, merchantId: true },
       });
       if (existing && existing.merchantId !== input.merchantId)
-        throw new AppException('errors.connections.salla_ownership_conflict', 409);
-      const lifecycleData = { ...connectionData, status: 'CONNECTED' as const, verifiedAt: new Date() };
+        throw new AppException(
+          'errors.connections.salla_ownership_conflict',
+          409,
+        );
+      const lifecycleData = {
+        ...connectionData,
+        status: 'CONNECTED' as const,
+        verifiedAt: new Date(),
+      };
       const connection = existing
-        ? tx.storeConnection.update({ where: { id: existing.id }, data: lifecycleData, select: { id: true } })
-        : tx.storeConnection.create({ data: { ...lifecycleData, platform: 'SALLA' }, select: { id: true } });
+        ? tx.storeConnection.update({
+            where: { id: existing.id },
+            data: lifecycleData,
+            select: { id: true },
+          })
+        : tx.storeConnection.create({
+            data: { ...lifecycleData, platform: 'SALLA' },
+            select: { id: true },
+          });
       const saved = await connection;
-      if (!this.audit) throw new Error('Audit repository is required for connection persistence');
-      await this.audit.create({
-        merchantId: input.merchantId,
-        actorUserId: input.ownerUserId,
-        action: existing ? 'CONNECTION_REAUTHORIZED' : 'CONNECTION_CREATED',
-        entityType: 'STORE_CONNECTION',
-        entityId: saved.id,
-        metadata: { status: 'CONNECTED' },
-      }, tx);
+      if (!this.audit)
+        throw new Error(
+          'Audit repository is required for connection persistence',
+        );
+      await this.audit.create(
+        {
+          merchantId: input.merchantId,
+          actorUserId: input.ownerUserId,
+          action: existing ? 'CONNECTION_REAUTHORIZED' : 'CONNECTION_CREATED',
+          entityType: 'STORE_CONNECTION',
+          entityId: saved.id,
+          metadata: { status: 'CONNECTED' },
+        },
+        tx,
+      );
       const completed = await tx.sallaConnectionIntent.updateMany({
         where: {
           id: input.intentId,
@@ -246,7 +331,11 @@ export class SallaOAuthRepository {
 }
 
 export class SallaOAuthStateException extends AppException {
-  constructor(key: string, status: number, readonly intentId: string) {
+  constructor(
+    key: string,
+    status: number,
+    readonly intentId: string,
+  ) {
     super(key, status);
   }
 }

@@ -12,6 +12,9 @@ describe('CommerceSyncProcessor', () => {
       opts: { attempts: 4 },
     } as never);
 
-    expect(sync.processRun).toHaveBeenCalledWith('run-1', { attemptsMade: 1, maxAttempts: 4 });
+    expect(sync.processRun).toHaveBeenCalledWith('run-1', {
+      attemptsMade: 1,
+      maxAttempts: 4,
+    });
   });
 });

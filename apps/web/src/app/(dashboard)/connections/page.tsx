@@ -3,4 +3,6 @@ import { ConnectionsPage } from "@/components/features/connections/ConnectionsPa
 
 export const metadata: Metadata = { title: "Connections | Tarmeez" };
 
-export default function ConnectionsRoute() { return <ConnectionsPage />; }
+export default function ConnectionsRoute() {
+  return <ConnectionsPage />;
+}

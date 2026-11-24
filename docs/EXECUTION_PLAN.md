@@ -1,4 +1,5 @@
 # Tarmeez — Execution Plan (MVP)
+
 **Version:** 1.0
 **Last updated:** November 2026
 **Goal:** A stable, testable MVP ready for real merchant beta
@@ -26,12 +27,15 @@ The total duration is not committed. Re-estimate after Phase 0 validation and af
 ---
 
 ## Phase 0 — Project Foundation
+
 ### Goal: One command starts everything. Zero config friction for any developer.
+
 ### Duration: Week 1
 
 ---
 
 ### Step 0.1 — Monorepo Setup
+
 **What:**
 Initialize the Turborepo monorepo with the correct folder structure.
 
@@ -39,6 +43,7 @@ Initialize the Turborepo monorepo with the correct folder structure.
 Everything else is built on top of this. Getting it wrong now means painful restructuring later.
 
 **Tasks:**
+
 - Init Turborepo with pnpm workspaces
 - Create `apps/web`, `apps/api`, `packages/types`, `packages/utils`
 - Configure `turbo.json` with `dev`, `build`, `lint` pipelines
@@ -46,6 +51,7 @@ Everything else is built on top of this. Getting it wrong now means painful rest
 - Add `.gitignore`, `.env.example` files for both apps
 
 **Result:**
+
 ```bash
 pnpm dev   # starts both apps in parallel
 pnpm build # builds both apps
@@ -55,6 +61,7 @@ pnpm lint  # lints both apps
 ---
 
 ### Step 0.2 — Docker Compose (Dev Services)
+
 **What:**
 Docker Compose file that starts PostgreSQL and Redis only. Code runs locally.
 
@@ -62,6 +69,7 @@ Docker Compose file that starts PostgreSQL and Redis only. Code runs locally.
 Every developer runs `docker compose up` and has a working database instantly — no manual PostgreSQL installation.
 
 **Tasks:**
+
 - `docker-compose.dev.yml` with:
   - `postgres:16-alpine` on port 5432
   - `redis:7-alpine` on port 6379
@@ -70,6 +78,7 @@ Every developer runs `docker compose up` and has a working database instantly �
 - Document the startup command in README
 
 **Result:**
+
 ```bash
 docker compose -f docker-compose.dev.yml up -d
 # PostgreSQL and Redis are ready
@@ -78,6 +87,7 @@ docker compose -f docker-compose.dev.yml up -d
 ---
 
 ### Step 0.3 — NestJS Project Scaffold
+
 **What:**
 Create the NestJS app following BACKEND_CONTRACT.md exactly.
 
@@ -85,6 +95,7 @@ Create the NestJS app following BACKEND_CONTRACT.md exactly.
 The contract defines the structure. Scaffolding correctly now means every future module just slots in.
 
 **Tasks:**
+
 - Init NestJS project in `apps/api`
 - Create folder structure: `features/`, `common/`, `config/`, `prisma/`, `jobs/`
 - Set up `ConfigModule` with all config files (app, database, jwt, bull)
@@ -93,6 +104,7 @@ The contract defines the structure. Scaffolding correctly now means every future
 - Add `GET /health` endpoint that checks DB + Redis connectivity
 
 **Result:**
+
 ```bash
 curl http://localhost:4000/health
 # { "success": true, "data": { "db": "ok", "redis": "ok" } }
@@ -101,6 +113,7 @@ curl http://localhost:4000/health
 ---
 
 ### Step 0.4 — Prisma Schema (Initial)
+
 **What:**
 Write the initial database schema covering all MVP models.
 
@@ -108,6 +121,7 @@ Write the initial database schema covering all MVP models.
 The schema is the contract between backend and database. Defining it upfront prevents migration chaos later.
 
 **Models to create:**
+
 ```prisma
 Merchant         # core merchant account
 RefreshToken     # stored hashed refresh tokens
@@ -121,6 +135,7 @@ Invitation       # beta invitations
 ```
 
 **Tasks:**
+
 - Write full schema with all relations, enums, and field mappings
 - Run first migration: `prisma migrate dev --name init`
 - Verify all tables created correctly
@@ -128,6 +143,7 @@ Invitation       # beta invitations
 ---
 
 ### Step 0.5 — CI/CD Pipeline
+
 **What:**
 GitHub Actions workflow that runs on every PR.
 
@@ -135,6 +151,7 @@ GitHub Actions workflow that runs on every PR.
 Catch broken code before it reaches main. Non-negotiable from day one.
 
 **Tasks:**
+
 - Workflow: install → lint → build → test (on PR to main)
 - Separate workflow: deploy to VPS (on push to main)
 - Add branch protection: no direct push to main
@@ -142,12 +159,15 @@ Catch broken code before it reaches main. Non-negotiable from day one.
 ---
 
 ## Phase 1 — Backend: Auth & Core
+
 ### Goal: A merchant can register, log in, and stay logged in securely.
+
 ### Duration: Weeks 2–3
 
 ---
 
 ### Step 1.1 — Auth Module
+
 **What:**
 Full authentication system with JWT access tokens and refresh tokens.
 
@@ -155,6 +175,7 @@ Full authentication system with JWT access tokens and refresh tokens.
 Every other endpoint requires authentication. This must be solid before anything else.
 
 **Endpoints:**
+
 ```
 POST /auth/register          # create merchant account
 POST /auth/login             # returns access + refresh token
@@ -165,6 +186,7 @@ POST /auth/reset-password    # set new password with token
 ```
 
 **Implementation details:**
+
 - Access token: JWT, 15 minutes
 - Refresh token: random UUID, hashed with bcrypt, stored in DB, 7 days
 - Password: hashed with bcrypt (rounds: 12)
@@ -172,6 +194,7 @@ POST /auth/reset-password    # set new password with token
 - All errors via `AppException` with translation keys
 
 **Guards and Strategies:**
+
 - `JwtStrategy` — validates access token
 - `JwtRefreshStrategy` — validates refresh token
 - `JwtAuthGuard` — protects routes
@@ -180,12 +203,14 @@ POST /auth/reset-password    # set new password with token
 ---
 
 ### Step 1.2 — Merchants Module
+
 **What:**
 Endpoints for managing merchant profile, workspace, and viewer invitations.
 
 **Approved MVP tenancy rule:** one workspace membership per merchant user. Public signup creates a workspace and `OWNER` membership; invitation signup joins the invited workspace as `VIEWER`. An already-assigned user cannot join a second workspace until multi-workspace support is deliberately added for agencies.
 
 **Endpoints:**
+
 ```
 GET    /merchants/me
 PATCH  /merchants/me
@@ -206,6 +231,7 @@ Every other resource (connections, analytics) belongs to a merchant. This establ
 ---
 
 ### Step 1.3 — Shared packages/types
+
 **What:**
 Define and adopt shared TypeScript contracts for API areas that are already implemented.
 
@@ -213,11 +239,15 @@ Define and adopt shared TypeScript contracts for API areas that are already impl
 Frontend and backend should agree on the same response and domain shapes without coupling the shared package to NestJS or Prisma.
 
 **Types in this step:**
+
 ```typescript
-ApiSuccessResponse<T>, ApiErrorResponse, PaginationMeta
-AuthUser, AuthSessionUser, AuthSessionResponse
-UserRole, MerchantStatus, MembershipRole
-MerchantWorkspace, MerchantProfileResponse, MerchantTeamMember, MerchantInvitation
+(ApiSuccessResponse<T>, ApiErrorResponse, PaginationMeta);
+(AuthUser, AuthSessionUser, AuthSessionResponse);
+(UserRole, MerchantStatus, MembershipRole);
+(MerchantWorkspace,
+  MerchantProfileResponse,
+  MerchantTeamMember,
+  MerchantInvitation);
 ```
 
 Connection, commerce, and advertising types are deferred until those API contracts exist; do not add speculative shapes in this step.
@@ -225,12 +255,15 @@ Connection, commerce, and advertising types are deferred until those API contrac
 ---
 
 ## Phase 2 — Backend: Commerce Integration
+
 ### Goal: A merchant can connect Salla or Zid and see their orders synced automatically.
+
 ### Duration: Weeks 4–6
 
 ---
 
 ### Step 2.1 — Provider Interface
+
 **What:**
 Define the shared `CommerceProvider` interface that Salla and Zid both implement.
 
@@ -240,12 +273,12 @@ This is the foundation of the unified approach we decided on. Write it once — 
 ```typescript
 // features/connections/providers/commerce-provider.interface.ts
 interface CommerceProvider {
-  getAuthUrl(state: string): string
-  exchangeCode(code: string): Promise<TokenPair>
-  refreshToken(token: string): Promise<TokenPair>
-  fetchOrders(since?: Date): Promise<NormalizedOrder[]>
-  fetchProducts(): Promise<NormalizedProduct[]>
-  fetchCustomers(): Promise<NormalizedCustomer[]>
+  getAuthUrl(state: string): string;
+  exchangeCode(code: string): Promise<TokenPair>;
+  refreshToken(token: string): Promise<TokenPair>;
+  fetchOrders(since?: Date): Promise<NormalizedOrder[]>;
+  fetchProducts(): Promise<NormalizedProduct[]>;
+  fetchCustomers(): Promise<NormalizedCustomer[]>;
 }
 ```
 
@@ -254,10 +287,12 @@ interface CommerceProvider {
 ---
 
 ### Step 2.2 — Salla Provider
+
 **What:**
 Implement `CommerceProvider` for Salla.
 
 **Tasks:**
+
 - Register a Salla Developer App (get CLIENT_ID, CLIENT_SECRET)
 - Implement OAuth flow (getAuthUrl, exchangeCode, refreshToken)
 - Implement data fetching (fetchOrders, fetchProducts, fetchCustomers)
@@ -267,6 +302,7 @@ Implement `CommerceProvider` for Salla.
 ---
 
 ### Step 2.3 — Zid Provider
+
 **What:**
 Implement the same `CommerceProvider` interface for Zid.
 
@@ -274,6 +310,7 @@ Implement the same `CommerceProvider` interface for Zid.
 The interface is already defined. The connection logic is already written. You only write the Zid-specific API calls and field mappings.
 
 **Tasks:**
+
 - Register a Zid Developer App
 - Implement the same interface methods for Zid's API
 - Map Zid's field names to our normalized shapes
@@ -281,10 +318,12 @@ The interface is already defined. The connection logic is already written. You o
 ---
 
 ### Step 2.4 — Connections Module
+
 **What:**
 The API that manages connecting, syncing, and disconnecting stores.
 
 **Endpoints:**
+
 ```
 GET  /connections                    # list merchant's connections
 POST /connections/:platform/init     # returns OAuth URL (salla or zid)
@@ -295,6 +334,7 @@ POST /connections/:id/sync           # manual re-sync trigger
 ```
 
 **Key logic:**
+
 - `platform` param selects the right provider automatically
 - Tokens stored encrypted in DB
 - On successful OAuth: immediately dispatch a `full-sync` BullMQ job
@@ -303,6 +343,7 @@ POST /connections/:id/sync           # manual re-sync trigger
 ---
 
 ### Step 2.5 — Sync Jobs (BullMQ)
+
 **What:**
 Background jobs that pull data from commerce platforms and store it in our DB.
 
@@ -310,6 +351,7 @@ Background jobs that pull data from commerce platforms and store it in our DB.
 A full sync of a large store can take minutes. An HTTP request cannot wait that long. BullMQ handles retries, failures, and scheduling independently.
 
 **Jobs:**
+
 ```
 commerce:full-sync
   └── Triggered: on first connection
@@ -323,6 +365,7 @@ commerce:incremental-sync
 ```
 
 **How the provider pattern works here:**
+
 ```typescript
 // sync.processor.ts — same code, any platform
 async process(job: Job) {
@@ -336,6 +379,7 @@ async process(job: Job) {
 ---
 
 ### Step 2.6 — Analytics Endpoints (Commerce)
+
 **What:**
 Read-only endpoints that query our DB (not Salla/Zid directly) and return analytics data.
 
@@ -343,6 +387,7 @@ Read-only endpoints that query our DB (not Salla/Zid directly) and return analyt
 Speed, consistency, and independence. Once data is synced to our DB, analytics are instant.
 
 **Endpoints:**
+
 ```
 GET /analytics/sales
     ?from=&to=&platform=     # revenue, orders, AOV — with date range filter
@@ -362,44 +407,50 @@ GET /analytics/customers
 ---
 
 ## Phase 3 — Backend: Advertising Integration
+
 ### Goal: A merchant can connect Meta Ads and see campaign performance alongside sales.
+
 ### Duration: Week 7
 
 ---
 
 ### Step 3.1 — Ads Provider Interface
+
 **What:**
 Same provider pattern — but for advertising platforms.
 
 ```typescript
 interface AdsProvider {
-  getAuthUrl(state: string): string
-  exchangeCode(code: string): Promise<TokenPair>
-  fetchCampaigns(since?: Date): Promise<NormalizedCampaignStat[]>
+  getAuthUrl(state: string): string;
+  exchangeCode(code: string): Promise<TokenPair>;
+  fetchCampaigns(since?: Date): Promise<NormalizedCampaignStat[]>;
 }
 ```
 
 **NormalizedCampaignStat:**
+
 ```typescript
 {
-  platformCampaignId: string
-  name: string
-  spend: number
-  clicks: number
-  impressions: number
-  reportedConversions: number
-  date: Date
-  platform: 'META' | 'TIKTOK' | 'GOOGLE'
+  platformCampaignId: string;
+  name: string;
+  spend: number;
+  clicks: number;
+  impressions: number;
+  reportedConversions: number;
+  date: Date;
+  platform: "META" | "TIKTOK" | "GOOGLE";
 }
 ```
 
 ---
 
 ### Step 3.2 — Meta Ads Provider
+
 **What:**
 Implement the `AdsProvider` interface for Meta (Facebook) Ads.
 
 **Tasks:**
+
 - Register Meta App (get APP_ID, APP_SECRET)
 - OAuth flow: merchant selects their Ad Account
 - Fetch campaigns, spend, clicks, impressions via Meta Marketing API
@@ -408,6 +459,7 @@ Implement the `AdsProvider` interface for Meta (Facebook) Ads.
 ---
 
 ### Step 3.3 — Ads Sync Job
+
 **What:**
 BullMQ job that syncs campaign stats daily.
 
@@ -421,26 +473,32 @@ ads:sync
 ---
 
 ### Step 3.4 — Analytics Endpoints (Ads)
+
 ```
 GET /analytics/ads
     ?from=&to=&platform=     # spend, clicks, impressions, ROAS by campaign
 ```
 
 **ROAS calculation (basic):**
+
 ```
 ROAS = revenue (from our DB) / spend (from Meta) for same date range
 ```
+
 No attribution yet — just side-by-side numbers.
 
 ---
 
 ## Phase 4 — Backend: Admin APIs
+
 ### Goal: The Tarmeez team can manage merchants, monitor the system, and run the beta.
+
 ### Duration: Week 8
 
 ---
 
 ### Step 4.1 — Admin Merchants
+
 ```
 GET   /admin/merchants              # all merchants, paginated + filterable
 GET   /admin/merchants/:id          # full merchant profile
@@ -451,6 +509,7 @@ PATCH /admin/merchants/:id/activate # activate account
 ---
 
 ### Step 4.2 — Admin System Monitoring
+
 ```
 GET /admin/system/connections   # health of all connections across all merchants
 GET /admin/system/logs          # failed sync jobs — merchant, platform, error, time
@@ -460,6 +519,7 @@ GET /admin/system/audit         # audit log — who did what and when
 ---
 
 ### Step 4.3 — Admin Subscriptions
+
 ```
 GET   /admin/subscriptions          # all subscriptions
 GET   /admin/subscriptions/:id      # detail + invoice history
@@ -469,6 +529,7 @@ PATCH /admin/subscriptions/:id/plan # manually change plan (beta: manual billing
 ---
 
 ### Step 4.4 — Beta Invitations
+
 ```
 POST /admin/invitations             # send beta invitation email
 GET  /admin/invitations             # list — sent, accepted, pending
@@ -477,6 +538,7 @@ GET  /admin/invitations             # list — sent, accepted, pending
 ---
 
 ### Step 4.5 — Admin Team
+
 ```
 GET    /admin/team        # list internal Tarmeez team members
 POST   /admin/team        # add team member
@@ -507,16 +569,20 @@ At the end of Phase 4, the entire backend is done:
 ---
 
 ## Phase 5 — Frontend: Foundation
+
 ### Goal: The Next.js app is scaffolded, connected to the API, and auth works end-to-end.
+
 ### Duration: Week 9
 
 ---
 
 ### Step 5.1 — Next.js Scaffold
+
 **What:**
 Create `apps/web` following FRONTEND_CONTRACT.md exactly.
 
 **Tasks:**
+
 - Init Next.js 16 with App Router in `apps/web`
 - Set up folder structure: `app/`, `components/`, `store/`, `services/`, `hooks/`, `lib/`, `types/`
 - Configure `tsconfig.json` with path aliases (`@/`)
@@ -527,10 +593,12 @@ Create `apps/web` following FRONTEND_CONTRACT.md exactly.
 ---
 
 ### Step 5.2 — Redux Store + RTK Query Base
+
 **What:**
 The state management foundation everything else builds on.
 
 **Tasks:**
+
 - `store/index.ts` — configureStore
 - `store/hooks.ts` — useAppDispatch, useAppSelector
 - `store/slices/uiSlice.ts` — sidebar, theme
@@ -541,10 +609,12 @@ The state management foundation everything else builds on.
 ---
 
 ### Step 5.3 — Auth Flow (End-to-End)
+
 **What:**
 The complete login / register / logout flow connecting to the real API.
 
 **Tasks:**
+
 - `services/authApi.ts` — login, register, refresh, logout mutations
 - Auth pages: Login, Register, Forgot Password, Reset Password
 - Token storage in Redux + httpOnly cookie strategy for refresh token
@@ -557,13 +627,17 @@ A developer can register, log in, and stay logged in. The token is sent on every
 ---
 
 ## Phase 6 — Frontend: Admin Panel
+
 ### Goal: The Tarmeez team can fully manage the beta from a real UI.
+
 ### Duration: Weeks 10–11
 
 ---
 
 ### Why Admin Panel before Merchant Dashboard?
+
 Before any real merchant touches the product, the team needs to:
+
 - See who signed up
 - Activate beta accounts
 - Monitor sync health
@@ -574,6 +648,7 @@ Without this, you are blind.
 ---
 
 ### Step 6.1 — Admin Layout
+
 - Sidebar with navigation links to all admin sections
 - Header with logged-in admin name + logout
 - Route group `(admin)` with its own layout
@@ -581,18 +656,23 @@ Without this, you are blind.
 ---
 
 ### Step 6.2 — Merchants Management
+
 **Pages:**
+
 - `/admin/merchants` — searchable, filterable table of all merchants
 - `/admin/merchants/[id]` — full profile: data, connections, subscription, activity log, suspend/activate buttons
 
 **Components:**
+
 - `MerchantsTable` — DataTable with search + status filter
 - `MerchantProfile` — tabs: Overview / Connections / Subscription / Audit
 
 ---
 
 ### Step 6.3 — System Monitoring
+
 **Pages:**
+
 - `/admin/system/connections` — cards for each connection showing status, last sync, error count
 - `/admin/system/logs` — filterable error log table (by merchant, platform, date)
 - `/admin/system/audit` — audit trail table (action, target, actor, timestamp)
@@ -600,20 +680,26 @@ Without this, you are blind.
 ---
 
 ### Step 6.4 — Subscriptions
+
 **Pages:**
+
 - `/admin/subscriptions` — table of all subscriptions with plan + payment status
 - `/admin/subscriptions/[id]` — invoice history + manual plan change
 
 ---
 
 ### Step 6.5 — Invitations
+
 **Page:**
+
 - `/admin/invitations` — send new beta invite (email input), table of sent invites with status (pending / accepted)
 
 ---
 
 ### Step 6.6 — Admin Team
+
 **Page:**
+
 - `/admin/team` — list internal team, add/remove members
 
 ---
@@ -635,12 +721,15 @@ Without this, you are blind.
 ---
 
 ## Phase 7 — Frontend: Merchant Dashboard
+
 ### Goal: A merchant can connect their store, see their data, and understand their performance.
+
 ### Duration: Weeks 12–15
 
 ---
 
 ### Step 7.1 — Merchant Layout
+
 - Sidebar with navigation (Overview, Connections, Analytics, Settings)
 - Header: workspace name, user menu, logout
 - Route group `(dashboard)` with its own layout separate from admin
@@ -648,6 +737,7 @@ Without this, you are blind.
 ---
 
 ### Step 7.2 — Onboarding Wizard
+
 **What:**
 A guided 3-step flow shown to every new merchant on first login.
 
@@ -655,6 +745,7 @@ A guided 3-step flow shown to every new merchant on first login.
 This is the first thing every merchant sees. If it is broken, nothing else matters.
 
 **Steps:**
+
 ```
 Step 1: Connect your store (Salla or Zid)
 Step 2: Connect your ad account (Meta — optional, skippable)
@@ -666,7 +757,9 @@ Step 3: You're ready — go to dashboard
 ---
 
 ### Step 7.3 — Connections
+
 **Pages:**
+
 - `/connections` — list of connected stores and ad accounts, status, last sync, add new
 - `/connections/[id]` — connection detail: status, sync history, permissions, disconnect button
 - `/connections/salla` — Salla OAuth initiation page
@@ -679,9 +772,11 @@ After OAuth redirect back, show a "Syncing your data..." state with a progress i
 ---
 
 ### Step 7.4 — Overview Dashboard
+
 **Page:** `/overview`
 
 **Widgets:**
+
 - Total revenue (current period vs previous period, % change)
 - Total orders (same comparison)
 - Average order value (same comparison)
@@ -693,33 +788,41 @@ After OAuth redirect back, show a "Syncing your data..." state with a progress i
 ---
 
 ### Step 7.5 — Sales Analytics
+
 **Pages:**
 
 `/analytics/sales`
+
 - Revenue over time (line chart)
 - Orders over time (bar chart)
 - AOV over time
 - Period selector + platform filter (if multiple stores connected)
 
 `/analytics/orders`
+
 - Paginated orders table: order ID, date, customer, total, status
 - Filters: status, date range, platform
 
 `/analytics/orders/[id]`
+
 - Order detail: line items, customer info, platform, status history
 
 `/analytics/products`
+
 - Top products table: name, units sold, revenue
 - Sortable by revenue or units
 
 `/analytics/customers`
+
 - New vs returning chart
 - Top customers by spend table
 
 ---
 
 ### Step 7.6 — Ads Analytics
+
 **Page:** `/analytics/ads`
+
 - Campaign table: name, spend, clicks, impressions, ROAS
 - Total spend vs total revenue (side by side — not attributed)
 - Period selector
@@ -729,20 +832,25 @@ After OAuth redirect back, show a "Syncing your data..." state with a progress i
 ---
 
 ### Step 7.7 — Settings
+
 **Pages:**
 
 `/settings/profile`
+
 - Name, email, change password form
 
 `/settings/workspace`
+
 - Workspace name, timezone, currency selector
 
 `/settings/team`
+
 - Team members list with roles (Owner / Viewer)
 - Invite by email form
 - Remove member button (Owner only)
 
 `/settings/subscription`
+
 - Current plan name
 - Renewal date
 - Beta notice: "You are on a beta plan — billing starts after beta period"
@@ -750,12 +858,15 @@ After OAuth redirect back, show a "Syncing your data..." state with a progress i
 ---
 
 ## Phase 8 — QA & Beta Preparation
+
 ### Goal: The product is stable, tested, and ready for real merchants.
+
 ### Duration: Week 16
 
 ---
 
 ### Step 8.1 — End-to-End Testing
+
 Test every critical user flow manually:
 
 ```
@@ -779,7 +890,9 @@ Admin flows:
 ---
 
 ### Step 8.2 — Error Handling Audit
+
 Go through every page and verify:
+
 - Loading state shows Skeleton (not blank page)
 - Error state shows EmptyState with retry button
 - Empty state shows correct empty message
@@ -788,6 +901,7 @@ Go through every page and verify:
 ---
 
 ### Step 8.3 — Performance Baseline
+
 - Largest Contentful Paint < 2.5s on overview page
 - API response time < 500ms for analytics endpoints
 - Sync job completes within reasonable time for a store with 1000 orders
@@ -795,6 +909,7 @@ Go through every page and verify:
 ---
 
 ### Step 8.4 — Security Review
+
 ```
 □ All routes are protected — unauthenticated requests return 401
 □ Merchant A cannot access Merchant B's data (test this explicitly)
@@ -807,6 +922,7 @@ Go through every page and verify:
 ---
 
 ### Step 8.5 — Production Deployment
+
 ```
 □ Docker Compose production config written
 □ Environment variables set on VPS
@@ -820,6 +936,7 @@ Go through every page and verify:
 ---
 
 ### Step 8.6 — Beta Merchant Onboarding
+
 ```
 □ Send invitations to 5–10 selected merchants
 □ Each merchant onboarded with manual assistance (not self-serve)
@@ -905,4 +1022,4 @@ if you have two frontend developers.
 
 ---
 
-*Last updated: November 2026*
+_Last updated: November 2026_

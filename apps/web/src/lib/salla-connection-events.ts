@@ -5,10 +5,15 @@ const STORAGE_KEY = "tarmeez:salla-connection-terminal";
 
 export interface SallaConnectionTerminalEvent {
   intentId: string;
-  status: Extract<SallaIntentStatus, "COMPLETED" | "FAILED" | "EXPIRED" | "CANCELLED">;
+  status: Extract<
+    SallaIntentStatus,
+    "COMPLETED" | "FAILED" | "EXPIRED" | "CANCELLED"
+  >;
 }
 
-export function publishSallaConnectionTerminal(event: SallaConnectionTerminalEvent) {
+export function publishSallaConnectionTerminal(
+  event: SallaConnectionTerminalEvent,
+) {
   if (typeof window === "undefined") return;
   const payload = JSON.stringify(event);
   try {
@@ -28,7 +33,9 @@ export function publishSallaConnectionTerminal(event: SallaConnectionTerminalEve
   }
 }
 
-export function subscribeToSallaConnectionTerminal(onEvent: (event: SallaConnectionTerminalEvent) => void) {
+export function subscribeToSallaConnectionTerminal(
+  onEvent: (event: SallaConnectionTerminalEvent) => void,
+) {
   if (typeof window === "undefined") return () => undefined;
   const handleMessage = (event: MessageEvent<SallaConnectionTerminalEvent>) => {
     if (isTerminalEvent(event.data)) onEvent(event.data);
@@ -59,8 +66,15 @@ export function subscribeToSallaConnectionTerminal(onEvent: (event: SallaConnect
   };
 }
 
-function isTerminalEvent(value: unknown): value is SallaConnectionTerminalEvent {
+function isTerminalEvent(
+  value: unknown,
+): value is SallaConnectionTerminalEvent {
   if (!value || typeof value !== "object") return false;
   const candidate = value as Record<string, unknown>;
-  return typeof candidate.intentId === "string" && ["COMPLETED", "FAILED", "EXPIRED", "CANCELLED"].includes(String(candidate.status));
+  return (
+    typeof candidate.intentId === "string" &&
+    ["COMPLETED", "FAILED", "EXPIRED", "CANCELLED"].includes(
+      String(candidate.status),
+    )
+  );
 }

@@ -68,15 +68,22 @@ describe('SallaProvider', () => {
 
   it('rejects a full page without pagination metadata instead of inferring another page forever', async () => {
     vi.mocked(fetch).mockResolvedValue(
-      new Response(JSON.stringify({ data: Array.from({ length: 50 }, (_, id) => ({ id })) }), { status: 200 }),
+      new Response(
+        JSON.stringify({
+          data: Array.from({ length: 50 }, (_, id) => ({ id })),
+        }),
+        { status: 200 },
+      ),
     );
 
-    await expect(provider.fetchPage('PRODUCTS', 'test-access-token', 1))
-      .rejects.toBeInstanceOf(SallaPaginationError);
+    await expect(
+      provider.fetchPage('PRODUCTS', 'test-access-token', 1),
+    ).rejects.toBeInstanceOf(SallaPaginationError);
   });
 
   it('builds a Custom Mode authorization URL with offline access and the exact redirect URI', () => {
-    const redirectUri = 'https://app.example.test/oauth/callback?tenant=one%2Ftwo';
+    const redirectUri =
+      'https://app.example.test/oauth/callback?tenant=one%2Ftwo';
 
     const authorizationUrl = provider.buildAuthorizationUrl({
       clientId: 'client-id',
@@ -126,9 +133,12 @@ describe('SallaProvider', () => {
 
   it('rejects an invalid authorization-code response without exposing secrets', async () => {
     vi.mocked(fetch).mockResolvedValue(
-      new Response(JSON.stringify({ error: 'invalid_grant', access_token: 'secret' }), {
-        status: 400,
-      }),
+      new Response(
+        JSON.stringify({ error: 'invalid_grant', access_token: 'secret' }),
+        {
+          status: 400,
+        },
+      ),
     );
 
     await expect(
@@ -138,17 +148,31 @@ describe('SallaProvider', () => {
         'client-secret',
         'https://app.example.test/callback',
       ),
-    ).rejects.toMatchObject({ message: 'Salla authorization-code exchange failed' });
+    ).rejects.toMatchObject({
+      message: 'Salla authorization-code exchange failed',
+    });
   });
 
   it('classifies invalid grants separately from transient provider failures', async () => {
-    vi.mocked(fetch).mockResolvedValue(new Response(JSON.stringify({ error: 'invalid_grant' }), { status: 400 }));
-    await expect(provider.refreshToken('refresh-token', 'client-id', 'client-secret'))
-      .rejects.toMatchObject({ kind: 'INVALID_GRANT' } satisfies Partial<SallaTokenError>);
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(JSON.stringify({ error: 'invalid_grant' }), { status: 400 }),
+    );
+    await expect(
+      provider.refreshToken('refresh-token', 'client-id', 'client-secret'),
+    ).rejects.toMatchObject({
+      kind: 'INVALID_GRANT',
+    } satisfies Partial<SallaTokenError>);
 
-    vi.mocked(fetch).mockResolvedValue(new Response(JSON.stringify({ message: 'rate limited' }), { status: 429 }));
-    await expect(provider.refreshToken('refresh-token', 'client-id', 'client-secret'))
-      .rejects.toMatchObject({ kind: 'TRANSIENT' } satisfies Partial<SallaTokenError>);
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(JSON.stringify({ message: 'rate limited' }), {
+        status: 429,
+      }),
+    );
+    await expect(
+      provider.refreshToken('refresh-token', 'client-id', 'client-secret'),
+    ).rejects.toMatchObject({
+      kind: 'TRANSIENT',
+    } satisfies Partial<SallaTokenError>);
   });
 
   it('rejects an authorization-code response with a non-numeric expiry', async () => {
@@ -170,7 +194,9 @@ describe('SallaProvider', () => {
         'client-secret',
         'https://app.example.test/callback',
       ),
-    ).rejects.toMatchObject({ message: 'Salla authorization-code exchange failed' });
+    ).rejects.toMatchObject({
+      message: 'Salla authorization-code exchange failed',
+    });
   });
 
   it('rejects a refresh response with an empty token', async () => {
@@ -202,7 +228,10 @@ describe('SallaProvider', () => {
 
   it('wraps authorization-code timeout without leaking the timeout error', async () => {
     vi.mocked(fetch).mockRejectedValue(
-      new DOMException('request timed out with client-secret=super-secret', 'TimeoutError'),
+      new DOMException(
+        'request timed out with client-secret=super-secret',
+        'TimeoutError',
+      ),
     );
 
     await expect(
@@ -229,7 +258,10 @@ describe('SallaProvider', () => {
 
   it('wraps refresh timeout without leaking the timeout error', async () => {
     vi.mocked(fetch).mockRejectedValue(
-      new DOMException('request timed out with refresh-token=super-secret', 'TimeoutError'),
+      new DOMException(
+        'request timed out with refresh-token=super-secret',
+        'TimeoutError',
+      ),
     );
 
     await expect(
@@ -241,19 +273,22 @@ describe('SallaProvider', () => {
     ['non-number', '3600'],
     ['negative', -1],
     ['non-finite', Number.NaN],
-  ])('rejects a refresh response with a %s expiry', async (_name, expiresIn) => {
-    vi.mocked(fetch).mockResolvedValue(
-      tokenResponse({
-        access_token: 'access-token',
-        refresh_token: 'refresh-token',
-        expires_in: expiresIn,
-      }),
-    );
+  ])(
+    'rejects a refresh response with a %s expiry',
+    async (_name, expiresIn) => {
+      vi.mocked(fetch).mockResolvedValue(
+        tokenResponse({
+          access_token: 'access-token',
+          refresh_token: 'refresh-token',
+          expires_in: expiresIn,
+        }),
+      );
 
-    await expect(
-      provider.refreshToken('refresh-token', 'client-id', 'client-secret'),
-    ).rejects.toMatchObject({ message: 'Salla token refresh failed' });
-  });
+      await expect(
+        provider.refreshToken('refresh-token', 'client-id', 'client-secret'),
+      ).rejects.toMatchObject({ message: 'Salla token refresh failed' });
+    },
+  );
 
   it('exposes the complete intent lifecycle status set', () => {
     expect(Object.values(SallaConnectionIntentStatus)).toEqual([
