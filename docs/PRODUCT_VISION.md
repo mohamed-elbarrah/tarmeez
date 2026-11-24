@@ -118,21 +118,21 @@ not merely from copying separate dashboards into one interface.
 
 ## 7. Product principles
 
--   **Merchant value first:** Every capability should solve a meaningful
-    merchant problem.
--   **Evidence before promises:** Validate platform capabilities, data
-    access and tracking accuracy before committing to outcomes.
--   **One coherent business picture:** Use consistent definitions and
-    relationships across commerce, advertising and behavioural data.
--   **Trust and transparency:** Show data freshness, coverage,
-    limitations and calculation definitions where relevant.
--   **Secure by design:** Protect connected accounts, credentials and
-    merchant data; isolate each merchant's information.
--   **Progressive scope:** Deliver a reliable foundation before
-    expanding into advanced analytics, attribution, automation or store
-    operations.
--   **Platform-aware integration:** Respect each platform's APIs,
-    permissions, policies and technical limits.
+- **Merchant value first:** Every capability should solve a meaningful
+  merchant problem.
+- **Evidence before promises:** Validate platform capabilities, data
+  access and tracking accuracy before committing to outcomes.
+- **One coherent business picture:** Use consistent definitions and
+  relationships across commerce, advertising and behavioural data.
+- **Trust and transparency:** Show data freshness, coverage,
+  limitations and calculation definitions where relevant.
+- **Secure by design:** Protect connected accounts, credentials and
+  merchant data; isolate each merchant's information.
+- **Progressive scope:** Deliver a reliable foundation before
+  expanding into advanced analytics, attribution, automation or store
+  operations.
+- **Platform-aware integration:** Respect each platform's APIs,
+  permissions, policies and technical limits.
 
 ## 8. What Tarmeez is not
 

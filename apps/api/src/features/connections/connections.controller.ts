@@ -49,14 +49,21 @@ export class ConnectionsController {
   }
 
   @Get('connections/salla/callback')
-  async sallaCallback(@Query() input: SallaCallbackDto, @Res() response: Response) {
+  async sallaCallback(
+    @Query() input: SallaCallbackDto,
+    @Res() response: Response,
+  ) {
     try {
       const result = await this.connections.handleSallaCallback(input);
       return this.redirectSallaResult(response, result);
     } catch (error) {
       const status = callbackStatus(error);
       const reason = callbackFailureReason(error);
-      return this.redirectSallaResult(response, { status, reason: status === 'CANCELLED' ? undefined : reason, intentId: callbackIntentId(error) });
+      return this.redirectSallaResult(response, {
+        status,
+        reason: status === 'CANCELLED' ? undefined : reason,
+        intentId: callbackIntentId(error),
+      });
     }
   }
 
@@ -75,14 +82,20 @@ export class ConnectionsController {
   @Get('connections/salla/intents/:intentId')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.MERCHANT)
-  intentStatus(@CurrentUser() user: AuthUser, @Param('intentId') intentId: string) {
+  intentStatus(
+    @CurrentUser() user: AuthUser,
+    @Param('intentId') intentId: string,
+  ) {
     return this.connections.getSallaIntentStatus(user.id, intentId);
   }
 
   @Delete('connections/salla/intents/:intentId')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.MERCHANT)
-  cancelIntent(@CurrentUser() user: AuthUser, @Param('intentId') intentId: string) {
+  cancelIntent(
+    @CurrentUser() user: AuthUser,
+    @Param('intentId') intentId: string,
+  ) {
     return this.connections.cancelSallaIntent(user.id, intentId);
   }
 
@@ -192,23 +205,31 @@ export class ConnectionsController {
   }
 }
 
-function callbackFailureReason(error: unknown): 'state_invalid' | 'workspace_owner_required' | 'oauth_failed' {
+function callbackFailureReason(
+  error: unknown,
+): 'state_invalid' | 'workspace_owner_required' | 'oauth_failed' {
   if (error instanceof Error && 'key' in error) {
     const key = error.key;
-    if (key === 'errors.connections.workspace_owner_required') return 'workspace_owner_required';
-    if (key === 'errors.connections.salla_state_invalid') return 'state_invalid';
+    if (key === 'errors.connections.workspace_owner_required')
+      return 'workspace_owner_required';
+    if (key === 'errors.connections.salla_state_invalid')
+      return 'state_invalid';
   }
   return 'oauth_failed';
 }
 
 function callbackStatus(error: unknown): 'FAILED' | 'CANCELLED' {
-  return error instanceof Error && 'key' in error && error.key === 'errors.connections.salla_intent_cancelled'
+  return error instanceof Error &&
+    'key' in error &&
+    error.key === 'errors.connections.salla_intent_cancelled'
     ? 'CANCELLED'
     : 'FAILED';
 }
 
 function callbackIntentId(error: unknown): string | undefined {
-  return error instanceof Error && 'intentId' in error && typeof error.intentId === 'string'
+  return error instanceof Error &&
+    'intentId' in error &&
+    typeof error.intentId === 'string'
     ? error.intentId
     : undefined;
 }

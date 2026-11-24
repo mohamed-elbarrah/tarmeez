@@ -12,5 +12,22 @@ import { AdsSyncProcessor } from './ads-sync.processor.js';
 import { ADS_CONTROL_QUEUE, AdsControlService } from './ads-control.service.js';
 import { AdsControlProcessor } from './ads-control.processor.js';
 
-@Module({ imports: [BullModule.registerQueue({ name: ADS_SYNC_QUEUE }), BullModule.registerQueue({ name: ADS_CONTROL_QUEUE })], controllers: [AdsController], providers: [AdsService, AdsRepository, MetaProvider, AuditRepository, AuditService, AdsSyncService, AdsSyncProcessor, AdsControlService, AdsControlProcessor] })
+@Module({
+  imports: [
+    BullModule.registerQueue({ name: ADS_SYNC_QUEUE }),
+    BullModule.registerQueue({ name: ADS_CONTROL_QUEUE }),
+  ],
+  controllers: [AdsController],
+  providers: [
+    AdsService,
+    AdsRepository,
+    MetaProvider,
+    AuditRepository,
+    AuditService,
+    AdsSyncService,
+    AdsSyncProcessor,
+    AdsControlService,
+    AdsControlProcessor,
+  ],
+})
 export class AdsModule {}

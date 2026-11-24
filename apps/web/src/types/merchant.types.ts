@@ -2,14 +2,33 @@ export type MembershipRole = "OWNER" | "VIEWER";
 export type MerchantStatus = "ACTIVE" | "SUSPENDED";
 export type ConnectionStatus = "CONNECTED" | "REAUTH_REQUIRED" | "DISCONNECTED";
 export type SyncResource = "ALL" | "PRODUCTS" | "CUSTOMERS" | "ORDERS";
-export type SyncStatus = "QUEUED" | "RUNNING" | "SUCCEEDED" | "PARTIAL" | "FAILED";
-export type SallaIntentStatus = "INITIATED" | "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED" | "EXPIRED" | "CANCELLED";
+export type SyncStatus =
+  "QUEUED" | "RUNNING" | "SUCCEEDED" | "PARTIAL" | "FAILED";
+export type SallaIntentStatus =
+  | "INITIATED"
+  | "PENDING"
+  | "PROCESSING"
+  | "COMPLETED"
+  | "FAILED"
+  | "EXPIRED"
+  | "CANCELLED";
 
 export interface MerchantProfile {
   role: MembershipRole;
   createdAt: string;
-  user: { id: string; email: string; name: string; emailVerifiedAt: string | null };
-  merchant: { id: string; name: string; status: MerchantStatus; createdAt: string; updatedAt: string };
+  user: {
+    id: string;
+    email: string;
+    name: string;
+    emailVerifiedAt: string | null;
+  };
+  merchant: {
+    id: string;
+    name: string;
+    status: MerchantStatus;
+    createdAt: string;
+    updatedAt: string;
+  };
 }
 
 export interface TeamMember {

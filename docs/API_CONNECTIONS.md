@@ -6,19 +6,19 @@ Each connection is owned by the user who completes authorization and belongs to 
 
 ## API endpoints
 
-| Method | Path | Who | Purpose |
-|---|---|---|---|
-| `POST` | `/connections/salla/start` | Workspace owner | Creates a 15-minute OAuth intent and returns `authorizationUrl`. |
-| `GET` | `/connections/salla/callback` | Salla redirect | Consumes the one-time state, exchanges the code, and redirects to the web result page. |
-| `GET` | `/connections/salla/intents/:intentId` | Workspace member | Reads safe authorization status. |
-| `POST` | `/webhooks/salla/app-events` | Salla webhook | Verifies and processes authorization updates and store events. No Tarmeez JWT. |
-| `GET` | `/connections` | Workspace member | Lists connected stores without credentials. |
-| `POST` | `/connections/:connectionId/sync` | Workspace owner | Queues an initial or manual sync. |
-| `GET` | `/connections/:connectionId/sync-runs` | Workspace member | Lists recent sync runs. |
-| `GET` | `/connections/:connectionId/products?page=1&perPage=25` | Workspace member | Lists imported products. |
-| `GET` | `/connections/:connectionId/customers?page=1&perPage=25` | Workspace member | Lists imported customers. |
-| `GET` | `/connections/:connectionId/orders?page=1&perPage=25` | Workspace member | Lists imported orders and line items. |
-| `DELETE` | `/connections/:connectionId` | Workspace owner | Disconnects the store and clears saved credentials. |
+| Method   | Path                                                     | Who              | Purpose                                                                                |
+| -------- | -------------------------------------------------------- | ---------------- | -------------------------------------------------------------------------------------- |
+| `POST`   | `/connections/salla/start`                               | Workspace owner  | Creates a 15-minute OAuth intent and returns `authorizationUrl`.                       |
+| `GET`    | `/connections/salla/callback`                            | Salla redirect   | Consumes the one-time state, exchanges the code, and redirects to the web result page. |
+| `GET`    | `/connections/salla/intents/:intentId`                   | Workspace member | Reads safe authorization status.                                                       |
+| `POST`   | `/webhooks/salla/app-events`                             | Salla webhook    | Verifies and processes authorization updates and store events. No Tarmeez JWT.         |
+| `GET`    | `/connections`                                           | Workspace member | Lists connected stores without credentials.                                            |
+| `POST`   | `/connections/:connectionId/sync`                        | Workspace owner  | Queues an initial or manual sync.                                                      |
+| `GET`    | `/connections/:connectionId/sync-runs`                   | Workspace member | Lists recent sync runs.                                                                |
+| `GET`    | `/connections/:connectionId/products?page=1&perPage=25`  | Workspace member | Lists imported products.                                                               |
+| `GET`    | `/connections/:connectionId/customers?page=1&perPage=25` | Workspace member | Lists imported customers.                                                              |
+| `GET`    | `/connections/:connectionId/orders?page=1&perPage=25`    | Workspace member | Lists imported orders and line items.                                                  |
+| `DELETE` | `/connections/:connectionId`                             | Workspace owner  | Disconnects the store and clears saved credentials.                                    |
 
 Protected endpoints require `Authorization: Bearer <TARMEEZ_ACCESS_TOKEN>`. The start request body is empty:
 

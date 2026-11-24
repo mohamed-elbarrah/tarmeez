@@ -1,5 +1,5 @@
-export type UserRole = 'MERCHANT' | 'ADMIN';
+export type UserRole = "MERCHANT" | "ADMIN";
 
-export type MerchantStatus = 'ACTIVE' | 'SUSPENDED';
+export type MerchantStatus = "ACTIVE" | "SUSPENDED";
 
-export type MembershipRole = 'OWNER' | 'VIEWER';
+export type MembershipRole = "OWNER" | "VIEWER";

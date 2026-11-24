@@ -1,4 +1,5 @@
 # Tarmeez — Frontend Structure Contract
+
 **Version:** 1.0
 **Stack:** Next.js 14 (App Router) · shadcn/ui · RTK Query · Redux Toolkit
 **Status:** Mandatory reference for all developers
@@ -92,77 +93,81 @@ src/
 
 ## 2. File Naming Conventions
 
-| Type | Convention | Example |
-|------|-----------|---------|
-| Components | PascalCase | `StatCard.tsx` |
-| Pages (Next.js) | lowercase | `page.tsx` |
-| Hooks | camelCase + use prefix | `useAuth.ts` |
-| Slices | camelCase + Slice suffix | `uiSlice.ts` |
-| API services | camelCase + Api suffix | `analyticsApi.ts` |
-| Types | camelCase + .types | `merchant.types.ts` |
-| Constants | camelCase | `constants.ts` |
+| Type            | Convention               | Example             |
+| --------------- | ------------------------ | ------------------- |
+| Components      | PascalCase               | `StatCard.tsx`      |
+| Pages (Next.js) | lowercase                | `page.tsx`          |
+| Hooks           | camelCase + use prefix   | `useAuth.ts`        |
+| Slices          | camelCase + Slice suffix | `uiSlice.ts`        |
+| API services    | camelCase + Api suffix   | `analyticsApi.ts`   |
+| Types           | camelCase + .types       | `merchant.types.ts` |
+| Constants       | camelCase                | `constants.ts`      |
 
 ---
 
 ## 3. Redux — Strict Rules
 
 ### What goes in Redux (UI State only):
+
 - Sidebar open/closed state
 - Logged-in user data (id, name, role, token)
 - Theme (light/dark)
 - Any modal/dialog state that affects more than one component
 
 ### What does NOT go in Redux (Server State → RTK Query):
+
 - API data (orders, merchants, analytics...)
 - Loading / error states for API calls
 - Anything that comes from the backend
 
 ### Mandatory Slice Pattern:
+
 ```typescript
 // store/slices/uiSlice.ts
-import { createSlice, PayloadAction } from '@reduxjs/toolkit'
+import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 
 interface UIState {
-  sidebarOpen: boolean
-  theme: 'light' | 'dark'
+  sidebarOpen: boolean;
+  theme: "light" | "dark";
 }
 
 const initialState: UIState = {
   sidebarOpen: true,
-  theme: 'light',
-}
+  theme: "light",
+};
 
 const uiSlice = createSlice({
-  name: 'ui',
+  name: "ui",
   initialState,
   reducers: {
     toggleSidebar: (state) => {
-      state.sidebarOpen = !state.sidebarOpen
+      state.sidebarOpen = !state.sidebarOpen;
     },
-    setTheme: (state, action: PayloadAction<'light' | 'dark'>) => {
-      state.theme = action.payload
+    setTheme: (state, action: PayloadAction<"light" | "dark">) => {
+      state.theme = action.payload;
     },
   },
-})
+});
 
-export const { toggleSidebar, setTheme } = uiSlice.actions
-export default uiSlice.reducer // Redux store entrypoints may use a default reducer export.
+export const { toggleSidebar, setTheme } = uiSlice.actions;
+export default uiSlice.reducer; // Redux store entrypoints may use a default reducer export.
 ```
 
 ### Typed Hooks — always use these, never the raw hooks:
+
 ```typescript
 // store/hooks.ts
-import { TypedUseSelectorHook, useDispatch, useSelector } from 'react-redux'
-import type { RootState, AppDispatch } from './index'
+import { TypedUseSelectorHook, useDispatch, useSelector } from "react-redux";
+import type { RootState, AppDispatch } from "./index";
 
-export const useAppDispatch = () => useDispatch<AppDispatch>()
-export const useAppSelector: TypedUseSelectorHook<RootState> = useSelector
+export const useAppDispatch = () => useDispatch<AppDispatch>();
+export const useAppSelector: TypedUseSelectorHook<RootState> = useSelector;
 
 // ✅ Correct
-const sidebarOpen = useAppSelector((state) => state.ui.sidebarOpen)
+const sidebarOpen = useAppSelector((state) => state.ui.sidebarOpen);
 
 // ❌ Wrong — never use useSelector directly
-const sidebarOpen = useSelector((state: RootState) => state.ui.sidebarOpen)
+const sidebarOpen = useSelector((state: RootState) => state.ui.sidebarOpen);
 ```
 
 ---
@@ -170,72 +175,75 @@ const sidebarOpen = useSelector((state: RootState) => state.ui.sidebarOpen)
 ## 4. RTK Query — Strict Rules
 
 ### Core rule: one baseApi only
+
 ```typescript
 // services/baseApi.ts
-import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react'
-import { RootState } from '@/store'
+import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
+import { RootState } from "@/store";
 
 export const baseApi = createApi({
-  reducerPath: 'api',
+  reducerPath: "api",
   baseQuery: fetchBaseQuery({
     baseUrl: process.env.NEXT_PUBLIC_API_URL,
     prepareHeaders: (headers, { getState }) => {
-      const token = (getState() as RootState).auth.token
+      const token = (getState() as RootState).auth.token;
       if (token) {
-        headers.set('Authorization', `Bearer ${token}`)
+        headers.set("Authorization", `Bearer ${token}`);
       }
-      return headers
+      return headers;
     },
   }),
-  tagTypes: ['Merchant', 'Connection', 'Analytics', 'Order'],
+  tagTypes: ["Merchant", "Connection", "Analytics", "Order"],
   endpoints: () => ({}),
-})
+});
 ```
 
 ### Every API service extends baseApi:
+
 ```typescript
 // services/connectionsApi.ts
-import { baseApi } from './baseApi'
-import { Connection } from '@/types/merchant.types'
+import { baseApi } from "./baseApi";
+import { Connection } from "@/types/merchant.types";
 
 export const connectionsApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     getConnections: builder.query<Connection[], void>({
-      query: () => '/connections',
-      providesTags: ['Connection'],
+      query: () => "/connections",
+      providesTags: ["Connection"],
     }),
     addConnection: builder.mutation<Connection, Partial<Connection>>({
       query: (body) => ({
-        url: '/connections',
-        method: 'POST',
+        url: "/connections",
+        method: "POST",
         body,
       }),
-      invalidatesTags: ['Connection'],
+      invalidatesTags: ["Connection"],
     }),
     deleteConnection: builder.mutation<void, string>({
       query: (id) => ({
         url: `/connections/${id}`,
-        method: 'DELETE',
+        method: "DELETE",
       }),
-      invalidatesTags: ['Connection'],
+      invalidatesTags: ["Connection"],
     }),
   }),
-})
+});
 
 export const {
   useGetConnectionsQuery,
   useAddConnectionMutation,
   useDeleteConnectionMutation,
-} = connectionsApi
+} = connectionsApi;
 ```
 
 ### RTK Query Naming Convention:
-| Type | Convention | Example |
-|------|-----------|---------|
-| Query | get + noun | `getConnections` |
-| Mutation POST | add / create | `addConnection` |
-| Mutation PUT/PATCH | update | `updateConnection` |
-| Mutation DELETE | delete / remove | `deleteConnection` |
+
+| Type               | Convention      | Example            |
+| ------------------ | --------------- | ------------------ |
+| Query              | get + noun      | `getConnections`   |
+| Mutation POST      | add / create    | `addConnection`    |
+| Mutation PUT/PATCH | update          | `updateConnection` |
+| Mutation DELETE    | delete / remove | `deleteConnection` |
 
 ---
 
@@ -323,6 +331,7 @@ function ConnectionsListSkeleton() {
 ## 6. Component Rules
 
 ### Mandatory pattern for every component:
+
 ```typescript
 // components/features/connections/ConnectionCard.tsx
 'use client'
@@ -366,6 +375,7 @@ export function ConnectionCard({ connection, onDisconnect }: ConnectionCardProps
 ```
 
 ### Mandatory component rules:
+
 1. **Named export always** — no `export default` for components
 2. **Interface before the component** — always
 3. **No API logic inside a component** — only in container components or pages
@@ -381,40 +391,40 @@ export function ConnectionCard({ connection, onDisconnect }: ConnectionCardProps
 
 // ✅ Use interface for objects
 export interface Merchant {
-  id: string
-  name: string
-  email: string
-  status: MerchantStatus
-  createdAt: string
+  id: string;
+  name: string;
+  email: string;
+  status: MerchantStatus;
+  createdAt: string;
 }
 
 // ✅ Use type for unions and computed types
-export type MerchantStatus = 'active' | 'suspended' | 'trial'
+export type MerchantStatus = "active" | "suspended" | "trial";
 
-export type ConnectionPlatform = 'salla' | 'zid' | 'meta' | 'tiktok' | 'google'
+export type ConnectionPlatform = "salla" | "zid" | "meta" | "tiktok" | "google";
 
 export interface Connection {
-  id: string
-  merchantId: string
-  platform: ConnectionPlatform
-  status: 'connected' | 'error' | 'expired'
-  lastSyncAt: string | null
+  id: string;
+  merchantId: string;
+  platform: ConnectionPlatform;
+  status: "connected" | "error" | "expired";
+  lastSyncAt: string | null;
 }
 
 // ✅ Unified API response wrapper
 export interface ApiResponse<T> {
-  data: T
+  data: T;
   meta?: {
-    total: number
-    page: number
-    perPage: number
-  }
+    total: number;
+    page: number;
+    perPage: number;
+  };
 }
 
 export interface ApiError {
-  message: string
-  code: string
-  details?: Record<string, string>
+  message: string;
+  code: string;
+  details?: Record<string, string>;
 }
 ```
 
@@ -487,18 +497,18 @@ export function ReduxProvider({ children }: { children: React.ReactNode }) {
 
 ## 10. Quick Reference — Every Developer Must Know This
 
-| Rule | ✅ Do | ❌ Don't |
-|------|-------|---------|
-| Exports | `export function X` | `export default X` |
-| API calls | RTK Query only | fetch / axios directly |
-| Server state | RTK Query | Redux slice |
-| UI state | Redux slice | complex useState in component |
-| Styles | Tailwind classes | inline styles |
-| Types | Separate files in `/types` | types inside component files |
-| `'use client'` | Leaf components only | Pages or layouts |
-| Loading state | Skeleton component | Plain "Loading..." text |
-| Error state | EmptyState component | No handling |
-| TypeScript | Strict types always | `any` |
+| Rule           | ✅ Do                      | ❌ Don't                      |
+| -------------- | -------------------------- | ----------------------------- |
+| Exports        | `export function X`        | `export default X`            |
+| API calls      | RTK Query only             | fetch / axios directly        |
+| Server state   | RTK Query                  | Redux slice                   |
+| UI state       | Redux slice                | complex useState in component |
+| Styles         | Tailwind classes           | inline styles                 |
+| Types          | Separate files in `/types` | types inside component files  |
+| `'use client'` | Leaf components only       | Pages or layouts              |
+| Loading state  | Skeleton component         | Plain "Loading..." text       |
+| Error state    | EmptyState component       | No handling                   |
+| TypeScript     | Strict types always        | `any`                         |
 
 ---
 
@@ -518,4 +528,4 @@ Before opening any Pull Request, verify:
 
 ---
 
-*Last updated: November 2026 — Review this document whenever a major stack change is made*
+_Last updated: November 2026 — Review this document whenever a major stack change is made_

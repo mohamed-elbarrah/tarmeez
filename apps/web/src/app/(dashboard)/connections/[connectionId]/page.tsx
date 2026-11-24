@@ -3,4 +3,6 @@ import { ConnectionDetailPage } from "@/components/features/connections/Connecti
 
 export const metadata: Metadata = { title: "Store connection | Tarmeez" };
 
-export default function ConnectionDetailRoute() { return <ConnectionDetailPage />; }
+export default function ConnectionDetailRoute() {
+  return <ConnectionDetailPage />;
+}

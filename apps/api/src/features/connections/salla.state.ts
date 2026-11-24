@@ -8,7 +8,10 @@ export function hashOAuthState(state: string): string {
   return createHash('sha256').update(state, 'utf8').digest('hex');
 }
 
-export function compareOAuthState(state: string, expectedHash: string): boolean {
+export function compareOAuthState(
+  state: string,
+  expectedHash: string,
+): boolean {
   const actual = Buffer.from(hashOAuthState(state), 'hex');
   const expected = Buffer.from(expectedHash, 'hex');
   return actual.length === expected.length && timingSafeEqual(actual, expected);

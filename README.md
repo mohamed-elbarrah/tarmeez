@@ -1,4 +1,5 @@
 # Tarmeez — Project README
+
 **Version:** 1.0
 **Last updated:** November 2026
 
@@ -36,59 +37,67 @@ tarmeez/
 ## Tech Stack
 
 ### Frontend (`apps/web`)
-| | |
-|--|--|
-| Framework | Next.js 16 — App Router |
-| UI Components | shadcn/ui + Tailwind CSS |
+
+|                  |                                                     |
+| ---------------- | --------------------------------------------------- |
+| Framework        | Next.js 16 — App Router                             |
+| UI Components    | shadcn/ui + Tailwind CSS                            |
 | State Management | Redux Toolkit (UI state) + RTK Query (server state) |
-| Language | TypeScript (strict) |
+| Language         | TypeScript (strict)                                 |
 
 ### Backend (`apps/api`)
-| | |
-|--|--|
-| Framework | NestJS 12 |
-| ORM | Prisma 7 (`^7` — v8 is RC, not yet stable) |
-| Database | PostgreSQL 16 |
-| Queue / Jobs | BullMQ |
-| Cache / Sessions | Redis 7 |
-| Auth | JWT + Refresh Tokens |
-| Language | TypeScript (strict) |
+
+|                  |                                            |
+| ---------------- | ------------------------------------------ |
+| Framework        | NestJS 12                                  |
+| ORM              | Prisma 7 (`^7` — v8 is RC, not yet stable) |
+| Database         | PostgreSQL 16                              |
+| Queue / Jobs     | BullMQ                                     |
+| Cache / Sessions | Redis 7                                    |
+| Auth             | JWT + Refresh Tokens                       |
+| Language         | TypeScript (strict)                        |
 
 ### Runtime
-| | |
-|--|--|
+
+|         |                                                                    |
+| ------- | ------------------------------------------------------------------ |
 | Node.js | 26 LTS (Active LTS since October 2026, supported until April 2029) |
 
 ### Infrastructure
-| | |
-|--|--|
+
+|                  |                         |
+| ---------------- | ----------------------- |
 | Containerization | Docker + Docker Compose |
-| Database image | `postgres:16-alpine` |
-| Redis image | `redis:7-alpine` |
-| Deployment | VPS — Docker Compose |
-| CI/CD | GitHub Actions |
+| Database image   | `postgres:16-alpine`    |
+| Redis image      | `redis:7-alpine`        |
+| Deployment       | VPS — Docker Compose    |
+| CI/CD            | GitHub Actions          |
 
 ---
 
 ## Getting Started
 
 ### Prerequisites
+
 - Node.js 26 LTS
 - Docker + Docker Compose
 - pnpm
 
 ### 1. Clone the repository
+
 ```bash
 git clone https://github.com/your-org/tarmeez.git
 cd tarmeez
 ```
 
 ### 2. Install dependencies
+
 ```bash
 pnpm install
 ```
 
 ### 3. Configure and start infrastructure services
+
 ```bash
 # Compose reads this root-level file for local service credentials and ports
 cp .env.example .env
@@ -106,6 +115,7 @@ docker compose -f docker-compose.dev.yml down
 The root `.env` supplies Compose with the PostgreSQL credentials and host ports; it is ignored by Git. These credentials and the unauthenticated Redis instance are for local development only. Both services bind to localhost and persist data in named Docker volumes. If you change the host ports in `.env`, update `DATABASE_URL` and `REDIS_PORT` in `apps/api/.env` to match. To **delete** the persisted data as well as stop the services, run `docker compose -f docker-compose.dev.yml down --volumes`.
 
 ### 4. Set up environment variables
+
 ```bash
 cp apps/api/.env.example apps/api/.env
 cp apps/web/.env.example apps/web/.env.local
@@ -113,28 +123,31 @@ cp apps/web/.env.example apps/web/.env.local
 ```
 
 ### 5. Run database migrations
+
 ```bash
 cd apps/api
 pnpm prisma migrate dev
 ```
 
 ### 6. Start development servers
+
 ```bash
 # From root — starts all apps in parallel
 pnpm dev
 ```
 
-| Service | URL |
-|---------|-----|
-| Merchant Dashboard | http://localhost:3000 |
-| API | http://localhost:4000 |
-| API Health | http://localhost:4000/health |
+| Service            | URL                          |
+| ------------------ | ---------------------------- |
+| Merchant Dashboard | http://localhost:3000        |
+| API                | http://localhost:4000        |
+| API Health         | http://localhost:4000/health |
 
 ---
 
 ## Environment Variables
 
 ### Backend (`apps/api/.env`)
+
 ```env
 # App
 NODE_ENV=development
@@ -169,6 +182,7 @@ META_APP_SECRET=
 ```
 
 ### Frontend (`apps/web/.env.local`)
+
 ```env
 NEXT_PUBLIC_API_URL=http://localhost:4000
 ```
@@ -181,16 +195,16 @@ Read the documents in this order. If they conflict, `AGENTS.md` defines the auth
 
 All product and technical documents live in `/docs` (the project README is at the repository root). Read them in this order:
 
-| Document | What it covers |
-|----------|---------------|
-| [`PRODUCT_VISION.md`](./docs/PRODUCT_VISION.md) | Why Tarmeez exists, who it serves, product principles |
-| [`PRODUCT_SCOPE.md`](./docs/PRODUCT_SCOPE.md) | Capability boundaries, phased direction, open decisions |
-| [`PRODUCT_ROADMAP.md`](./docs/PRODUCT_ROADMAP.md) | Delivery phases, workstreams, risks, next steps |
-| [`EXECUTION_PLAN.md`](./docs/EXECUTION_PLAN.md) | Current implementation sequence and checkpoints |
-| [`API_AUTH.md`](./docs/API_AUTH.md) | Authentication API flows, endpoints, cookies, and errors |
-| [`API_MERCHANTS.md`](./docs/API_MERCHANTS.md) | Merchant workspace, team roles, and invitation flows |
-| [`FRONTEND_CONTRACT.md`](./docs/FRONTEND_CONTRACT.md) | **Mandatory** frontend structure, patterns, and rules |
-| [`BACKEND_CONTRACT.md`](./docs/BACKEND_CONTRACT.md) | **Mandatory** backend structure, patterns, and rules |
+| Document                                              | What it covers                                           |
+| ----------------------------------------------------- | -------------------------------------------------------- |
+| [`PRODUCT_VISION.md`](./docs/PRODUCT_VISION.md)       | Why Tarmeez exists, who it serves, product principles    |
+| [`PRODUCT_SCOPE.md`](./docs/PRODUCT_SCOPE.md)         | Capability boundaries, phased direction, open decisions  |
+| [`PRODUCT_ROADMAP.md`](./docs/PRODUCT_ROADMAP.md)     | Delivery phases, workstreams, risks, next steps          |
+| [`EXECUTION_PLAN.md`](./docs/EXECUTION_PLAN.md)       | Current implementation sequence and checkpoints          |
+| [`API_AUTH.md`](./docs/API_AUTH.md)                   | Authentication API flows, endpoints, cookies, and errors |
+| [`API_MERCHANTS.md`](./docs/API_MERCHANTS.md)         | Merchant workspace, team roles, and invitation flows     |
+| [`FRONTEND_CONTRACT.md`](./docs/FRONTEND_CONTRACT.md) | **Mandatory** frontend structure, patterns, and rules    |
+| [`BACKEND_CONTRACT.md`](./docs/BACKEND_CONTRACT.md)   | **Mandatory** backend structure, patterns, and rules     |
 
 ---
 
@@ -230,6 +244,7 @@ All product and technical documents live in `/docs` (the project README is at th
 > The contracts below are **mandatory**. PRs that violate them will not be merged.
 
 ### Frontend — Non-negotiable rules
+
 - `'use client'` in leaf components only — never in pages or layouts
 - All API calls through **RTK Query** — no fetch/axios directly
 - All UI-only state through **Redux slices** — no server state in Redux
@@ -239,6 +254,7 @@ All product and technical documents live in `/docs` (the project README is at th
 - Full rules → [`FRONTEND_CONTRACT.md`](./docs/FRONTEND_CONTRACT.md)
 
 ### Backend — Non-negotiable rules
+
 - All Prisma calls inside **Repository** classes only
 - All config accessed through **ConfigService** — no `process.env` in code
 - All errors thrown as **`AppException`** with a translation key — no hardcoded text
@@ -257,6 +273,7 @@ All product and technical documents live in `/docs` (the project README is at th
 The implementation plan currently targets a controlled beta. This baseline is not a final product commitment; Phase 0 validation and product-owner decisions remain authoritative.
 
 ### Merchant Dashboard
+
 - Account registration and login (JWT + Refresh Tokens)
 - Connect a Salla store (OAuth)
 - Connect a Zid store (OAuth)
@@ -267,6 +284,7 @@ The implementation plan currently targets a controlled beta. This baseline is no
 - Team management (Owner + Viewer roles)
 
 ### Admin Panel (Internal)
+
 - Merchant list and profiles
 - Subscription management
 - Connection health overview
@@ -274,6 +292,7 @@ The implementation plan currently targets a controlled beta. This baseline is no
 - Beta invitations
 
 ### Explicitly out of the current working baseline
+
 - Storefront tracking script
 - Attribution and customer journey
 - Alerts and AI recommendations
@@ -286,16 +305,16 @@ The implementation plan currently targets a controlled beta. This baseline is no
 
 These phases are a delivery sequence, not a fixed schedule. The first release boundary remains subject to the validation decisions in `PRODUCT_SCOPE.md` and `PRODUCT_ROADMAP.md`.
 
-| Phase | Outcome |
-|-------|---------|
-| **0 — Validation** | Verify Salla/Zid APIs, webhooks, tracking feasibility |
-| **1 — Foundation** | Auth, multi-tenancy, infrastructure, CI/CD |
-| **2 — Salla Integration** | OAuth, data sync, webhook handling |
-| **3 — Core Analytics** | Sales dashboard, orders, products |
-| **4 — Zid Integration** | Same as Salla on the proven pattern |
-| **5 — Ads Integration** | Meta Ads — spend, campaigns, basic ROAS |
-| **6 — Beta** | 5–10 real merchants, monitored onboarding |
-| **7 — v1 Public** | Self-serve onboarding, billing, stable release |
+| Phase                     | Outcome                                               |
+| ------------------------- | ----------------------------------------------------- |
+| **0 — Validation**        | Verify Salla/Zid APIs, webhooks, tracking feasibility |
+| **1 — Foundation**        | Auth, multi-tenancy, infrastructure, CI/CD            |
+| **2 — Salla Integration** | OAuth, data sync, webhook handling                    |
+| **3 — Core Analytics**    | Sales dashboard, orders, products                     |
+| **4 — Zid Integration**   | Same as Salla on the proven pattern                   |
+| **5 — Ads Integration**   | Meta Ads — spend, campaigns, basic ROAS               |
+| **6 — Beta**              | 5–10 real merchants, monitored onboarding             |
+| **7 — v1 Public**         | Self-serve onboarding, billing, stable release        |
 
 Full detail → [`PRODUCT_ROADMAP.md`](./docs/PRODUCT_ROADMAP.md)
 
@@ -303,31 +322,31 @@ Full detail → [`PRODUCT_ROADMAP.md`](./docs/PRODUCT_ROADMAP.md)
 
 ## Key Decisions Log
 
-| Decision | Choice | Reason |
-|----------|--------|--------|
-| Monorepo | Turborepo | Shared types between web and api, single pipeline |
-| Node.js runtime | v26 LTS | Active LTS since Oct 2026, supported until Apr 2029 |
-| Frontend framework | Next.js 16 — App Router | Latest stable, Turbopack default, server components |
-| UI | shadcn/ui + Tailwind | Accessible, unstyled base, full control |
-| State | RTK Query + Redux Toolkit | Server state vs UI state separation |
-| Backend framework | NestJS 12 | Latest stable, ESM, native observability |
-| ORM | Prisma 7 (pinned `^7`) | Stable for production — v8 is still RC |
-| Database | PostgreSQL 16 Alpine | Stable, lightweight image |
-| Queue | BullMQ + Redis 7 Alpine | Reliable job processing for sync tasks |
-| Auth | JWT + Refresh Tokens | Stateless API, secure token rotation |
-| Dev services | Docker Compose | One command setup for all developers |
-| Production | VPS + Docker Compose | Simple, cost-effective for beta stage |
-| CI/CD | GitHub Actions | Free, sufficient for current team size |
-| API errors | Translation keys (not hardcoded text) | i18n-ready from day one |
+| Decision           | Choice                                | Reason                                              |
+| ------------------ | ------------------------------------- | --------------------------------------------------- |
+| Monorepo           | Turborepo                             | Shared types between web and api, single pipeline   |
+| Node.js runtime    | v26 LTS                               | Active LTS since Oct 2026, supported until Apr 2029 |
+| Frontend framework | Next.js 16 — App Router               | Latest stable, Turbopack default, server components |
+| UI                 | shadcn/ui + Tailwind                  | Accessible, unstyled base, full control             |
+| State              | RTK Query + Redux Toolkit             | Server state vs UI state separation                 |
+| Backend framework  | NestJS 12                             | Latest stable, ESM, native observability            |
+| ORM                | Prisma 7 (pinned `^7`)                | Stable for production — v8 is still RC              |
+| Database           | PostgreSQL 16 Alpine                  | Stable, lightweight image                           |
+| Queue              | BullMQ + Redis 7 Alpine               | Reliable job processing for sync tasks              |
+| Auth               | JWT + Refresh Tokens                  | Stateless API, secure token rotation                |
+| Dev services       | Docker Compose                        | One command setup for all developers                |
+| Production         | VPS + Docker Compose                  | Simple, cost-effective for beta stage               |
+| CI/CD              | GitHub Actions                        | Free, sufficient for current team size              |
+| API errors         | Translation keys (not hardcoded text) | i18n-ready from day one                             |
 
 ---
 
 ## Team
 
-| Role | Responsibilities |
-|------|-----------------|
-| Frontend Developer | Next.js app, components, RTK Query, Redux |
-| Backend Developer | NestJS API, integrations, BullMQ jobs |
+| Role                | Responsibilities                              |
+| ------------------- | --------------------------------------------- |
+| Frontend Developer  | Next.js app, components, RTK Query, Redux     |
+| Backend Developer   | NestJS API, integrations, BullMQ jobs         |
 | Database Specialist | Prisma schema, migrations, query optimization |
 
 ---
@@ -342,4 +361,4 @@ Full detail → [`PRODUCT_ROADMAP.md`](./docs/PRODUCT_ROADMAP.md)
 
 ---
 
-*This README reflects the current working baseline as of November 2026. Update it when an approved product or architectural decision changes.*
+_This README reflects the current working baseline as of November 2026. Update it when an approved product or architectural decision changes._

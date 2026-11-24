@@ -5,9 +5,14 @@ import { ConnectionsController } from './connections.controller.js';
 describe('ConnectionsController Salla callback redirects', () => {
   it('redirects invalid callback state to the safe frontend result route', async () => {
     const connections = {
-      handleSallaCallback: vi.fn().mockRejectedValue(
-        new AppException('errors.connections.salla_state_invalid', HttpStatus.BAD_REQUEST),
-      ),
+      handleSallaCallback: vi
+        .fn()
+        .mockRejectedValue(
+          new AppException(
+            'errors.connections.salla_state_invalid',
+            HttpStatus.BAD_REQUEST,
+          ),
+        ),
     };
     const response = { redirect: vi.fn() };
     const controller = new ConnectionsController(
@@ -27,7 +32,9 @@ describe('ConnectionsController Salla callback redirects', () => {
   it('redirects callback failures with intent id and no provider details', async () => {
     const connections = {
       handleSallaCallback: vi.fn().mockResolvedValue({
-        intentId: 'intent-1', status: 'FAILED', reason: 'provider_denied',
+        intentId: 'intent-1',
+        status: 'FAILED',
+        reason: 'provider_denied',
       }),
     };
     const response = { redirect: vi.fn() };
@@ -37,7 +44,10 @@ describe('ConnectionsController Salla callback redirects', () => {
       { get: vi.fn().mockReturnValue('https://app.example.test') } as never,
     );
 
-    await controller.sallaCallback({ state: 'state', error: 'access_denied' }, response as never);
+    await controller.sallaCallback(
+      { state: 'state', error: 'access_denied' },
+      response as never,
+    );
 
     expect(response.redirect).toHaveBeenCalledWith(
       HttpStatus.FOUND,
@@ -46,12 +56,18 @@ describe('ConnectionsController Salla callback redirects', () => {
   });
 
   it('preserves a safe intent id when the owner was removed during callback validation', async () => {
-    const error = new AppException('errors.connections.workspace_owner_required', HttpStatus.FORBIDDEN);
+    const error = new AppException(
+      'errors.connections.workspace_owner_required',
+      HttpStatus.FORBIDDEN,
+    );
     Object.assign(error, { intentId: 'intent-1' });
-    const connections = { handleSallaCallback: vi.fn().mockRejectedValue(error) };
+    const connections = {
+      handleSallaCallback: vi.fn().mockRejectedValue(error),
+    };
     const response = { redirect: vi.fn() };
     const controller = new ConnectionsController(
-      connections as never, {} as never,
+      connections as never,
+      {} as never,
       { get: vi.fn().mockReturnValue('https://app.example.test') } as never,
     );
 
@@ -66,10 +82,23 @@ describe('ConnectionsController Salla callback redirects', () => {
 
 describe('ConnectionsController Salla intent cancellation', () => {
   it('delegates authenticated cancellation and returns the safe status response', async () => {
-    const connections = { cancelSallaIntent: vi.fn().mockResolvedValue({ id: 'intent-1', status: 'CANCELLED' }) };
-    const controller = new ConnectionsController(connections as never, {} as never, {} as never);
+    const connections = {
+      cancelSallaIntent: vi
+        .fn()
+        .mockResolvedValue({ id: 'intent-1', status: 'CANCELLED' }),
+    };
+    const controller = new ConnectionsController(
+      connections as never,
+      {} as never,
+      {} as never,
+    );
 
-    await expect(controller.cancelIntent({ id: 'user-1', role: 'MERCHANT' }, 'intent-1')).resolves.toEqual({ id: 'intent-1', status: 'CANCELLED' });
-    expect(connections.cancelSallaIntent).toHaveBeenCalledWith('user-1', 'intent-1');
+    await expect(
+      controller.cancelIntent({ id: 'user-1', role: 'MERCHANT' }, 'intent-1'),
+    ).resolves.toEqual({ id: 'intent-1', status: 'CANCELLED' });
+    expect(connections.cancelSallaIntent).toHaveBeenCalledWith(
+      'user-1',
+      'intent-1',
+    );
   });
 });

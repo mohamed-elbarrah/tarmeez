@@ -13,9 +13,10 @@ interface HandlerResult<T> {
 }
 
 @Injectable()
-export class ResponseInterceptor<T>
-  implements NestInterceptor<T, ApiSuccessResponse<unknown>>
-{
+export class ResponseInterceptor<T> implements NestInterceptor<
+  T,
+  ApiSuccessResponse<unknown>
+> {
   intercept(
     _context: ExecutionContext,
     next: CallHandler<T>,

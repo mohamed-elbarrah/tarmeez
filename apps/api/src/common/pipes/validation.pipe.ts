@@ -10,7 +10,9 @@ function collectErrors(
   parentPath = '',
 ): Record<string, string[]> {
   return errors.reduce<Record<string, string[]>>((details, error) => {
-    const path = parentPath ? `${parentPath}.${error.property}` : error.property;
+    const path = parentPath
+      ? `${parentPath}.${error.property}`
+      : error.property;
     const constraints = Object.values(error.constraints ?? {});
 
     if (constraints.length > 0) {

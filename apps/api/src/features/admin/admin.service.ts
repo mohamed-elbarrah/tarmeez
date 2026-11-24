@@ -6,7 +6,11 @@ export class AdminService {
   constructor(private readonly repository: AdminRepository) {}
 
   async listMerchantUsers(page: number, perPage: number, search?: string) {
-    const result = await this.repository.listMerchantUsers({ page, perPage, search });
+    const result = await this.repository.listMerchantUsers({
+      page,
+      perPage,
+      search,
+    });
     return {
       data: result.users.map((user) => ({
         id: user.id,

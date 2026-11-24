@@ -1,13 +1,28 @@
-import { buildCreateApi, coreModule, fetchBaseQuery, reactHooksModule } from "@reduxjs/toolkit/query/react";
-import { createDispatchHook, createSelectorHook, createStoreHook } from "react-redux";
+import {
+  buildCreateApi,
+  coreModule,
+  fetchBaseQuery,
+  reactHooksModule,
+} from "@reduxjs/toolkit/query/react";
+import {
+  createDispatchHook,
+  createSelectorHook,
+  createStoreHook,
+} from "react-redux";
 import { reduxContext } from "@/store/redux-context";
-import type { BaseQueryFn, FetchArgs, FetchBaseQueryError } from "@reduxjs/toolkit/query";
+import type {
+  BaseQueryFn,
+  FetchArgs,
+  FetchBaseQueryError,
+} from "@reduxjs/toolkit/query";
 import { clearCredentials, setCredentials } from "@/store/slices/authSlice";
 import type { RootState } from "@/store";
 
 const configuredBaseUrl = process.env.NEXT_PUBLIC_API_URL?.trim();
 if (!configuredBaseUrl) {
-  throw new Error("NEXT_PUBLIC_API_URL is required. Set it in apps/web/.env.local.");
+  throw new Error(
+    "NEXT_PUBLIC_API_URL is required. Set it in apps/web/.env.local.",
+  );
 }
 const parsedBaseUrl = new URL(configuredBaseUrl);
 if (parsedBaseUrl.protocol !== "http:" && parsedBaseUrl.protocol !== "https:") {
@@ -26,23 +41,39 @@ const rawBaseQuery = fetchBaseQuery({
 });
 
 let refreshPromise: Promise<{ accessToken: string } | null> | null = null;
-const baseQueryWithReauth: BaseQueryFn<string | FetchArgs, unknown, FetchBaseQueryError> = async (args, api, extraOptions) => {
+const baseQueryWithReauth: BaseQueryFn<
+  string | FetchArgs,
+  unknown,
+  FetchBaseQueryError
+> = async (args, api, extraOptions) => {
   let result = await rawBaseQuery(args, api, extraOptions);
   const requestUrl = typeof args === "string" ? args : args.url;
   const isAuthRoute = requestUrl.startsWith("auth/");
   const isSessionBootstrapRoute = requestUrl === "auth/me";
-  if (result.error?.status === 401 && requestUrl !== "auth/refresh" && (!isAuthRoute || isSessionBootstrapRoute)) {
+  if (
+    result.error?.status === 401 &&
+    requestUrl !== "auth/refresh" &&
+    (!isAuthRoute || isSessionBootstrapRoute)
+  ) {
     if (!refreshPromise) {
       refreshPromise = (async () => {
-        const refreshed = await rawBaseQuery({ url: "auth/refresh", method: "POST" }, api, extraOptions);
-        const accessToken = (refreshed.data as { data?: { accessToken?: string } } | undefined)?.data?.accessToken;
+        const refreshed = await rawBaseQuery(
+          { url: "auth/refresh", method: "POST" },
+          api,
+          extraOptions,
+        );
+        const accessToken = (
+          refreshed.data as { data?: { accessToken?: string } } | undefined
+        )?.data?.accessToken;
         if (typeof accessToken === "string") {
           api.dispatch(setCredentials({ accessToken }));
           return { accessToken };
         }
         api.dispatch(clearCredentials());
         return null;
-      })().finally(() => { refreshPromise = null; });
+      })().finally(() => {
+        refreshPromise = null;
+      });
     }
     const refreshed = await refreshPromise;
     if (refreshed) result = await rawBaseQuery(args, api, extraOptions);
@@ -64,6 +95,16 @@ const createApi = buildCreateApi(
 export const baseApi = createApi({
   reducerPath: "api",
   baseQuery: baseQueryWithReauth,
-  tagTypes: ["Auth", "MerchantProfile", "Team", "Invitation", "Connection", "ConnectionIntent", "SyncRun", "AdAccount", "AdCampaign"],
+  tagTypes: [
+    "Auth",
+    "MerchantProfile",
+    "Team",
+    "Invitation",
+    "Connection",
+    "ConnectionIntent",
+    "SyncRun",
+    "AdAccount",
+    "AdCampaign",
+  ],
   endpoints: () => ({}),
 });

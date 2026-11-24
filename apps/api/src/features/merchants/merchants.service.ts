@@ -65,7 +65,8 @@ export class MerchantsService {
 
   async getInvitations(userId: string): Promise<MerchantInvitation[]> {
     await this.requireOwner(userId);
-    const invitations = await this.merchantsRepository.findMyInvitations(userId);
+    const invitations =
+      await this.merchantsRepository.findMyInvitations(userId);
     if (!invitations) {
       throw new AppException('errors.merchant.not_found', HttpStatus.NOT_FOUND);
     }
@@ -209,8 +210,7 @@ export class MerchantsService {
       createdAt: membership.createdAt.toISOString(),
       user: {
         ...membership.user,
-        emailVerifiedAt:
-          membership.user.emailVerifiedAt?.toISOString() ?? null,
+        emailVerifiedAt: membership.user.emailVerifiedAt?.toISOString() ?? null,
       },
       merchant: {
         ...membership.merchant,

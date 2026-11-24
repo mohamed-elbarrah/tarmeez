@@ -1,4 +1,4 @@
-import type { MembershipRole, MerchantStatus, UserRole } from './enums.js';
+import type { MembershipRole, MerchantStatus, UserRole } from "./enums.js";
 
 /** Date/time fields are ISO-8601 strings in JSON responses. */
 export interface MerchantWorkspace {

@@ -28,17 +28,17 @@ Users can also start a session with `POST /auth/login`. Password reset uses `POS
 
 ## Endpoints
 
-| Method | Path | Purpose | Success status |
-|---|---|---|---:|
-| `POST` | `/auth/register` | Register a merchant and send a signup OTP | `200` |
-| `POST` | `/auth/verify-email` | Verify signup OTP, complete signup/invitation, and sign in | `200` |
-| `POST` | `/auth/accept-invitation` | Existing verified, unassigned user accepts invitation and signs in | `200` |
-| `POST` | `/auth/login` | Sign in a verified, active account | `200` |
-| `POST` | `/auth/refresh` | Rotate refresh token and issue a new access token | `200` |
-| `POST` | `/auth/logout` | Revoke refresh token and clear cookie | `200` |
-| `POST` | `/auth/forgot-password` | Request a password-reset OTP | `200` |
-| `POST` | `/auth/reset-password` | Set a new password using a reset OTP | `200` |
-| `GET` | `/auth/me` | Return the authenticated principal | `200` |
+| Method | Path                      | Purpose                                                            | Success status |
+| ------ | ------------------------- | ------------------------------------------------------------------ | -------------: |
+| `POST` | `/auth/register`          | Register a merchant and send a signup OTP                          |          `200` |
+| `POST` | `/auth/verify-email`      | Verify signup OTP, complete signup/invitation, and sign in         |          `200` |
+| `POST` | `/auth/accept-invitation` | Existing verified, unassigned user accepts invitation and signs in |          `200` |
+| `POST` | `/auth/login`             | Sign in a verified, active account                                 |          `200` |
+| `POST` | `/auth/refresh`           | Rotate refresh token and issue a new access token                  |          `200` |
+| `POST` | `/auth/logout`            | Revoke refresh token and clear cookie                              |          `200` |
+| `POST` | `/auth/forgot-password`   | Request a password-reset OTP                                       |          `200` |
+| `POST` | `/auth/reset-password`    | Set a new password using a reset OTP                               |          `200` |
+| `GET`  | `/auth/me`                | Return the authenticated principal                                 |          `200` |
 
 ### Request bodies
 
@@ -170,19 +170,19 @@ Errors use this envelope; `details` is included when available:
 
 Common auth errors:
 
-| Status | Error key | Meaning |
-|---:|---|---|
-| `400` | `errors.auth.invalid_or_expired_otp` | OTP is invalid, expired, or already used |
-| `401` | `errors.auth.invalid_credentials` | Credentials are wrong, or account cannot sign in |
-| `401` | `errors.auth.invalid_refresh_token` | Refresh cookie is missing, invalid, or expired |
-| `401` | `errors.auth.refresh_token_reused` | A rotated refresh token was reused; sign in again |
-| `401` | `errors.auth.unauthorized` | Missing or invalid access token |
-| `403` | `errors.auth.forbidden` | Authenticated user lacks the required role |
-| `403` | `errors.auth.origin_not_allowed` | Request origin is not allowed |
-| `429` | `errors.auth.otp_attempts_exceeded` | OTP attempt limit was reached |
-| `429` | `errors.request.invalid` | Request-rate limit was reached |
-| `503` | `errors.auth.email_delivery_failed` | Signup verification email could not be delivered |
-| `400` | `errors.request.validation_failed` | Request failed DTO validation |
+| Status | Error key                            | Meaning                                           |
+| -----: | ------------------------------------ | ------------------------------------------------- |
+|  `400` | `errors.auth.invalid_or_expired_otp` | OTP is invalid, expired, or already used          |
+|  `401` | `errors.auth.invalid_credentials`    | Credentials are wrong, or account cannot sign in  |
+|  `401` | `errors.auth.invalid_refresh_token`  | Refresh cookie is missing, invalid, or expired    |
+|  `401` | `errors.auth.refresh_token_reused`   | A rotated refresh token was reused; sign in again |
+|  `401` | `errors.auth.unauthorized`           | Missing or invalid access token                   |
+|  `403` | `errors.auth.forbidden`              | Authenticated user lacks the required role        |
+|  `403` | `errors.auth.origin_not_allowed`     | Request origin is not allowed                     |
+|  `429` | `errors.auth.otp_attempts_exceeded`  | OTP attempt limit was reached                     |
+|  `429` | `errors.request.invalid`             | Request-rate limit was reached                    |
+|  `503` | `errors.auth.email_delivery_failed`  | Signup verification email could not be delivered  |
+|  `400` | `errors.request.validation_failed`   | Request failed DTO validation                     |
 
 Auth routes are rate limited per client IP using Redis-backed storage: register, verify-email, invitation acceptance, login, and reset-password allow 5 requests/minute each; refresh allows 30/minute; forgot-password allows 3/minute. The global API limit is 100 requests/minute. A `429` may indicate either an OTP attempt limit or a request-rate limit. Workspace invitation creation/resend have their own limits; see [`API_MERCHANTS.md`](API_MERCHANTS.md).
 

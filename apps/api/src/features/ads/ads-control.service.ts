@@ -8,8 +8,21 @@ export const AdsControlJobName = { STATUS: 'ads:campaign-status' } as const;
 
 @Injectable()
 export class AdsControlService {
-  constructor(private readonly repository: AdsRepository, @InjectQueue(ADS_CONTROL_QUEUE) private readonly queue: Queue) {}
+  constructor(
+    private readonly repository: AdsRepository,
+    @InjectQueue(ADS_CONTROL_QUEUE) private readonly queue: Queue,
+  ) {}
   async enqueue(actionId: string) {
-    await this.queue.add(AdsControlJobName.STATUS, { actionId }, { jobId: actionId, attempts: 2, backoff: { type: 'exponential', delay: 3000 }, removeOnComplete: true, removeOnFail: false });
+    await this.queue.add(
+      AdsControlJobName.STATUS,
+      { actionId },
+      {
+        jobId: actionId,
+        attempts: 2,
+        backoff: { type: 'exponential', delay: 3000 },
+        removeOnComplete: true,
+        removeOnFail: false,
+      },
+    );
   }
 }

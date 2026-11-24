@@ -10,8 +10,10 @@ process.env.NODE_ENV = 'test';
 process.env.PORT = '4000';
 process.env.FRONTEND_URL = 'http://localhost:3000';
 process.env.DATABASE_URL = 'postgresql://tarmeez:secret@localhost:5432/tarmeez';
-process.env.JWT_ACCESS_SECRET = 'test-access-secret-with-more-than-thirty-two-characters';
-process.env.JWT_REFRESH_SECRET = 'test-refresh-secret-with-more-than-thirty-two-characters';
+process.env.JWT_ACCESS_SECRET =
+  'test-access-secret-with-more-than-thirty-two-characters';
+process.env.JWT_REFRESH_SECRET =
+  'test-refresh-secret-with-more-than-thirty-two-characters';
 process.env.REDIS_HOST = 'localhost';
 process.env.REDIS_PORT = '6379';
 

@@ -17,7 +17,10 @@ export class AuditService {
     metadata: Prisma.InputJsonValue;
   }): Promise<void> {
     try {
-      await this.repository.create({ ...input, metadata: safeMetadata(input.metadata) });
+      await this.repository.create({
+        ...input,
+        metadata: safeMetadata(input.metadata),
+      });
     } catch {
       this.logger.warn(`Audit write failed for ${input.action}`);
     }

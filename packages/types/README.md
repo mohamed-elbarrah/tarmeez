@@ -10,7 +10,7 @@ import type {
   AuthSessionResponse,
   MerchantProfileResponse,
   MerchantTeamMember,
-} from '@tarmeez/types';
+} from "@tarmeez/types";
 ```
 
 The package exports contracts for the implemented auth and merchant APIs. Add types for future features only after their API shapes are defined. Build the package before compiling a consumer; the workspace build pipeline handles this dependency automatically.
